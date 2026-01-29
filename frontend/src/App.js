@@ -1,6 +1,12 @@
 /* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useTheme } from './ThemeContext';
+import { useToast } from './ToastContext';
+import ThemeToggle from './ThemeToggle';
+import PipelineVisualizer from './PipelineVisualizer';
+import ModernFileUpload from './ModernFileUpload';
+import LoadingScreen from './LoadingScreen';
 import './App.css';
 
 // Reusable FileUpload component with drag-and-drop
@@ -47,12 +53,18 @@ const FileUpload = ({ label, accept, file, setFile, error, setError, fileType, d
     return 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
   };
 
+  // Get API base URL from environment or default
+  const getApiBaseUrl = () => {
+    return process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+  };
+
   // Load user data
   const loadUserData = async (uid) => {
     try {
+      const apiBase = getApiBaseUrl();
       const [userResponse, batchResponse] = await Promise.all([
-        axios.get(`http://localhost:8000/user/${uid}`),
-        axios.get(`http://localhost:8000/user/${uid}/batches`)
+        axios.get(`${apiBase}/user/${uid}`),
+        axios.get(`${apiBase}/user/${uid}/batches`)
       ]);
 
       setUserHistory(userResponse.data.history || []);
@@ -103,11 +115,16 @@ const FileUpload = ({ label, accept, file, setFile, error, setError, fileType, d
     }
 
     try {
-      const response = await axios.post('http://localhost:8000/batch', {
+      const apiBase = getApiBaseUrl();
+      const headers = {};
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+      const response = await axios.post(`${apiBase}/batch`, {
         user_id: userId,
         name: batchName,
         jobs: batchJobs
-      });
+      }, { headers });
 
       alert(`Batch created successfully! Batch ID: ${response.data.batch_id}`);
       setBatchJobs([]);
@@ -375,6 +392,8 @@ const FileUpload = ({ label, accept, file, setFile, error, setError, fileType, d
 };
 
 function App() {
+  const { theme } = useTheme();
+  const { showSuccess, showError, showInfo } = useToast();
   const [pipelineType, setPipelineType] = useState('idea2video');
   const [idea, setIdea] = useState('');
   const [script, setScript] = useState('');
@@ -406,6 +425,7 @@ function App() {
   const [batchJobs, setBatchJobs] = useState([]);
   const [batchName, setBatchName] = useState('');
   const [userBatches, setUserBatches] = useState([]);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('vimax_api_key') || '');
   const [touchStartX, setTouchStartX] = useState(0);
   const [touchStartY, setTouchStartY] = useState(0);
   const [isSwipeGesture, setIsSwipeGesture] = useState(false);
@@ -432,6 +452,15 @@ function App() {
       loadUserData(newUserId);
     }
   }, []);
+
+  // Save API key to localStorage when it changes
+  useEffect(() => {
+    if (apiKey) {
+      localStorage.setItem('vimax_api_key', apiKey);
+    } else {
+      localStorage.removeItem('vimax_api_key');
+    }
+  }, [apiKey]);
 
   // Enhanced WebSocket connection with reconnection
   useEffect(() => {
@@ -526,11 +555,12 @@ function App() {
 
     // Check for file validation errors
     if (fileErrors.script || fileErrors.photo) {
-      alert('Please fix file validation errors before submitting.');
+      showError('Please fix file validation errors before submitting.');
       return;
     }
 
     setIsLoading(true);
+    showInfo('Starting video generation...', 3000);
 
     const formData = new FormData();
     formData.append('user_id', userId);
@@ -558,17 +588,23 @@ function App() {
     }
 
     try {
-      const response = await axios.post('http://localhost:8000/generate-video', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const apiBase = getApiBaseUrl();
+      const headers = {
+        'Content-Type': 'multipart/form-data',
+      };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+      const response = await axios.post(`${apiBase}/generate-video`, formData, {
+        headers,
       });
 
       setJobId(response.data.job_id);
       setJobStatus({ status: 'processing', message: 'Video generation started...' });
+      showSuccess('Video generation started! Check progress below.');
     } catch (error) {
       console.error('Error starting video generation:', error);
-      alert('Error starting video generation. Please check the console for details.');
+      showError('Failed to start video generation. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -626,6 +662,49 @@ function App() {
     closeVideoEditor();
   };
 
+  // Touch event handlers for mobile responsiveness
+  const handleTouchStartEnhanced = (e) => {
+    // Enhanced touch start handler for mobile gestures
+    console.log('Touch start:', e.touches);
+  };
+
+  const handleTouchMove = (e) => {
+    // Handle touch move for swipe gestures
+    console.log('Touch move:', e.touches);
+  };
+
+  const handleTouchEnd = (e) => {
+    // Handle touch end for gesture completion
+    console.log('Touch end');
+  };
+
+  const handleButtonTouch = (callback) => (e) => {
+    // Enhanced button touch with haptic feedback
+    if (isMobile && 'vibrate' in navigator) {
+      navigator.vibrate(50); // Haptic feedback
+    }
+    callback();
+  };
+
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
+  const triggerHapticFeedback = (type = 'light') => {
+    if ('vibrate' in navigator) {
+      const patterns = {
+        light: 50,
+        medium: 100,
+        heavy: 200
+      };
+      navigator.vibrate(patterns[type] || 50);
+    }
+  };
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <div
       className="App"
@@ -639,6 +718,8 @@ function App() {
             <h1>🎬 ViMax Video Generator</h1>
             <p>Transform your ideas into videos with AI</p>
           </div>
+
+          <ThemeToggle />
 
           <div className="user-section">
             <div className="user-stats">
@@ -804,6 +885,22 @@ function App() {
 
       <main className="main-content">
         <form onSubmit={handleSubmit} className="video-form">
+          <div className="form-section">
+            <h3>Authentication</h3>
+            <div className="form-group">
+              <label htmlFor="apiKey">API Key:</label>
+              <input
+                type="password"
+                id="apiKey"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Enter your API key"
+                className="form-control"
+              />
+              <small className="form-help">Required for accessing the video generation service</small>
+            </div>
+          </div>
+
           <div className="form-group">
             <label htmlFor="pipeline">Pipeline Type:</label>
             <select
@@ -1021,18 +1118,34 @@ function App() {
           <button
             type="submit"
             disabled={isLoading}
-            className="generate-btn touch-target mobile-optimized-btn"
+            className={`generate-btn touch-target mobile-optimized-btn btn-ripple hover-lift click-scale focus-ring ${isLoading ? 'loading' : ''}`}
             onClick={() => isMobile() && triggerHapticFeedback('heavy')}
           >
-            {isLoading ? 'Starting...' :
-             pipelineType === 'idea2video' ? '🎯 Generate from Idea' :
-             pipelineType === 'script2video' ? '📝 Generate from Script' :
-             pipelineType === 'novel2video' ? '📖 Generate from Novel' :
-             '📸 Create Cameo Video'}
+            {isLoading ? (
+              <>
+                <div className="loading-spinner"></div>
+                Starting...
+              </>
+            ) : (
+              <>
+                {pipelineType === 'idea2video' && '🎯 Generate from Idea'}
+                {pipelineType === 'script2video' && '📝 Generate from Script'}
+                {pipelineType === 'novel2video' && '📖 Generate from Novel'}
+                {pipelineType === 'cameo' && '📸 Create Cameo Video'}
+              </>
+            )}
           </button>
         </form>
 
-        {jobStatus && (
+        {jobStatus && jobStatus.steps && (
+          <PipelineVisualizer
+            steps={jobStatus.steps}
+            currentStep={jobStatus.steps.findIndex(step => step.status === 'in_progress')}
+            progress={jobStatus.progress || 0}
+          />
+        )}
+
+        {jobStatus && !jobStatus.steps && (
           <div className="job-status">
             <h3>Generation Status</h3>
             <p><strong>Status:</strong> {jobStatus.status}</p>
@@ -1142,7 +1255,12 @@ function App() {
                   <button
                     onClick={async () => {
                       try {
-                        await axios.post(`http://localhost:8000/user/${userId}/feedback`, {
+                        const apiBase = getApiBaseUrl();
+                        const headers = {};
+                        if (apiKey) {
+                          headers['Authorization'] = `Bearer ${apiKey}`;
+                        }
+                        await axios.post(`${apiBase}/user/${userId}/feedback`, {
                           job_id: jobId,
                           rating: rating,
                           comments: feedback,

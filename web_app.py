@@ -1,18 +1,130 @@
-from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException, Depends, Header
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, Field, validator
 import asyncio
 import os
 import json
 import hashlib
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from pathlib import Path
+from dotenv import load_dotenv
 from pipelines.idea2video_pipeline import Idea2VideoPipeline
 from pipelines.script2video_pipeline import Script2VideoPipeline
 # from pipelines.novel2movie_pipeline import Novel2MoviePipeline  # Temporarily disabled for testing
+
+# Load environment variables
+load_dotenv()
+
+# Authentication
+security = HTTPBearer()
+API_KEY = os.getenv("API_KEY")
+
+# Pydantic Models for Request Validation
+class VideoGenerationRequest(BaseModel):
+    user_id: str = Field(default="anonymous", description="User identifier")
+    pipeline_type: str = Field(default="idea2video", description="Type of pipeline to use")
+    idea: str = Field(default="", description="Idea for video generation")
+    script: str = Field(default="", description="Script content")
+    user_requirement: str = Field(default="", description="User requirements")
+    style: str = Field(default="Realistic", description="Visual style")
+    image_generator: str = Field(default="google", description="Image generator to use")
+    video_generator: str = Field(default="google", description="Video generator to use")
+    quality: str = Field(default="standard", description="Quality setting")
+    resolution: str = Field(default="1080p", description="Video resolution")
+    format: str = Field(default="mp4", description="Video format")
+
+    @validator('pipeline_type')
+    def validate_pipeline_type(cls, v):
+        allowed = ['idea2video', 'script2video', 'cameo']
+        if v not in allowed:
+            raise ValueError(f'Pipeline type must be one of: {allowed}')
+        return v
+
+    @validator('quality')
+    def validate_quality(cls, v):
+        allowed = ['standard', 'high', 'ultra']
+        if v not in allowed:
+            raise ValueError(f'Quality must be one of: {allowed}')
+        return v
+
+    @validator('resolution')
+    def validate_resolution(cls, v):
+        allowed = ['720p', '1080p', '4k']
+        if v not in allowed:
+            raise ValueError(f'Resolution must be one of: {allowed}')
+        return v
+
+class BatchJobRequest(BaseModel):
+    pipeline_type: str
+    idea: str = ""
+    script: str = ""
+    user_requirement: str = ""
+    style: str = "Realistic"
+    image_generator: str = "google"
+    video_generator: str = "google"
+    quality: str = "standard"
+    resolution: str = "1080p"
+    format: str = "mp4"
+
+class BatchCreationRequest(BaseModel):
+    name: str
+    jobs: List[BatchJobRequest]
+
+    @validator('jobs')
+    def validate_jobs(cls, v):
+        if len(v) == 0:
+            raise ValueError('At least one job must be provided')
+        if len(v) > 10:
+            raise ValueError('Maximum 10 jobs allowed per batch')
+        return v
+
+def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verify API key from Authorization header"""
+    if not API_KEY:
+        # If no API key is set, allow all requests (for development)
+        return True
+
+    if credentials.credentials != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return True
+
+def validate_file_upload(file: UploadFile, allowed_types: List[str] = None, max_size: int = None) -> None:
+    """Validate uploaded file"""
+    if not file:
+        return
+
+    # Check file size
+    if max_size is None:
+        max_size = int(os.getenv("MAX_UPLOAD_SIZE", "10485760"))  # 10MB default
+
+    file_content = file.file.read()
+    file.file.seek(0)  # Reset file pointer
+
+    if len(file_content) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File size exceeds maximum allowed size of {max_size} bytes"
+        )
+
+    # Check file type
+    if allowed_types is None:
+        allowed_types = os.getenv("ALLOWED_FILE_TYPES", "pdf,txt,doc,docx").split(",")
+
+    file_extension = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+    if file_extension not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type '{file_extension}' not allowed. Allowed types: {', '.join(allowed_types)}"
+        )
 
 # WebSocket support
 from fastapi import WebSocket
@@ -21,16 +133,19 @@ from fastapi.websockets import WebSocketDisconnect
 app = FastAPI(title="ViMax Web API", description="AI-powered video generation from ideas")
 
 # Add CORS middleware
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001")
+if allowed_origins == "*":
+    allow_origins = ["*"]
+else:
+    allow_origins = [origin.strip() for origin in allowed_origins.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Mount static files directory for serving generated videos
-app.mount("/videos", StaticFiles(directory="videos"), name="videos")
 
 # Global pipeline instances
 pipelines = {}
@@ -55,9 +170,6 @@ CACHE_DIR = Path("cache")
 CACHE_DIR.mkdir(exist_ok=True)
 CACHE_INDEX_FILE = CACHE_DIR / "cache_index.json"
 CACHE_EXPIRY_DAYS = 7  # Cache entries expire after 7 days
-
-# Mount cache directory for serving cached videos
-app.mount("/cache", StaticFiles(directory="cache"), name="cache")
 
 # Load cache index
 def load_cache_index():
@@ -239,8 +351,10 @@ def get_pipeline(pipeline_type: str):
 
     if actual_pipeline_type not in pipelines:
         if actual_pipeline_type == "idea2video":
-            pipelines[actual_pipeline_type] = Idea2VideoPipeline.init_from_config("configs/idea2video.yaml")
+            pipelines[actual_pipeline_type] = Idea2VideoPipeline.init_from_env()
         elif actual_pipeline_type == "script2video":
+            # For now, script2video still uses config - will update later
+            from pipelines.script2video_pipeline import Script2VideoPipeline
             pipelines[actual_pipeline_type] = Script2VideoPipeline.init_from_config("configs/script2video.yaml")
         # elif actual_pipeline_type == "novel2video":
         #     pipelines[actual_pipeline_type] = Novel2MoviePipeline.init_from_config("configs/script2video.yaml")  # Uses same config as script2video
@@ -541,7 +655,8 @@ def get_batch_status(batch_id: str) -> dict:
 async def startup_event():
     global pipeline
     try:
-        pipeline = Idea2VideoPipeline.init_from_config("configs/idea2video.yaml")
+        pipeline = Idea2VideoPipeline.init_from_env()
+        print("Pipeline initialized successfully")
     except Exception as e:
         print(f"Failed to initialize pipeline: {e}")
         # Continue without pipeline for now
@@ -549,6 +664,7 @@ async def startup_event():
 @app.post("/generate-video")
 async def generate_video(
     background_tasks: BackgroundTasks,
+    _auth: bool = Depends(verify_api_key),
     user_id: str = Form("anonymous"),
     pipeline_type: str = Form("idea2video"),  # idea2video, script2video, novel2video
     idea: str = Form(""),
@@ -564,6 +680,20 @@ async def generate_video(
     novel_file: Optional[UploadFile] = File(None),
     photo_file: Optional[UploadFile] = File(None)
 ):
+    # Validate input parameters
+    request_data = VideoGenerationRequest(
+        user_id=user_id,
+        pipeline_type=pipeline_type,
+        idea=idea,
+        script=script,
+        user_requirement=user_requirement,
+        style=style,
+        image_generator=image_generator,
+        video_generator=video_generator,
+        quality=quality,
+        resolution=resolution,
+        format=format
+    )
     start_time = datetime.now()
 
     if not pipeline:
@@ -606,17 +736,19 @@ async def generate_video(
     job_dir = Path(f"videos/{job_id}")
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save uploaded files if provided
+    # Validate and save uploaded files if provided
     script_path = None
     photo_path = None
 
     if script_file:
+        validate_file_upload(script_file)
         script_path = job_dir / f"script_{script_file.filename}"
         with open(script_path, "wb") as f:
             content = await script_file.read()
             f.write(content)
 
     if photo_file:
+        validate_file_upload(photo_file, allowed_types=["jpg", "jpeg", "png", "webp"])
         photo_path = job_dir / f"photo_{photo_file.filename}"
         with open(photo_path, "wb") as f:
             content = await photo_file.read()
@@ -951,16 +1083,10 @@ async def submit_user_feedback(user_id: str, feedback_data: dict):
     return {"message": "Feedback submitted successfully"}
 
 @app.post("/batch")
-async def create_batch_job(user_id: str, batch_data: dict):
+async def create_batch_job(user_id: str, batch_data: BatchCreationRequest, _auth: bool = Depends(verify_api_key)):
     """Create a new batch job"""
-    batch_name = batch_data.get("name", f"Batch {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    jobs = batch_data.get("jobs", [])
-
-    if not jobs or len(jobs) == 0:
-        raise HTTPException(status_code=400, detail="Batch must contain at least one job")
-
-    if len(jobs) > 10:  # Limit batch size
-        raise HTTPException(status_code=400, detail="Batch cannot contain more than 10 jobs")
+    batch_name = batch_data.name or f"Batch {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    jobs = batch_data.jobs
 
     batch_id = create_batch(user_id, batch_name, jobs)
     return {"batch_id": batch_id, "message": "Batch created successfully"}
@@ -1066,7 +1192,16 @@ async def get_metrics():
 
 @app.get("/")
 async def root():
-    return {"message": "ViMax Web API", "version": "1.0.0"}
+    return FileResponse("frontend/build/index.html", media_type="text/html")
+
+# Mount static files directory for serving generated videos
+app.mount("/videos", StaticFiles(directory="videos"), name="videos")
+
+# Mount cache directory for serving cached videos
+app.mount("/cache", StaticFiles(directory="cache"), name="cache")
+
+# Mount frontend static files
+app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
 
 if __name__ == "__main__":
     import uvicorn

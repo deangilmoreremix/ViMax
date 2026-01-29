@@ -1,15 +1,18 @@
 import asyncio
+from dotenv import load_dotenv
 from pipelines.idea2video_pipeline import Idea2VideoPipeline
 
+# Load environment variables
+load_dotenv()
 
 # SET YOUR OWN IDEA, USER REQUIREMENT, AND STYLE HERE
 idea = \
     """
-A beaufitul fit woman with black hair, great butt and thigs is exercising in a
+A beautiful fit woman with black hair, great butt and thighs is exercising in a
 gym surrounded by glass windows with a beautiful beach view on the outside.
 She is performing glute exercises that highlight her beautiful back and sexy outfit
 and showing the audience the proper form. Between the 3 different exercises she looks
-at the camera with a gorgeous look asking the viewer understood the proper form.
+at the camera with a gorgeous look asking the viewer if they understood the proper form.
 """
 user_requirement = \
     """
@@ -19,8 +22,7 @@ style = "Realistic, warm feel"
 
 
 async def main():
-    pipeline = Idea2VideoPipeline.init_from_config(
-        config_path="configs/idea2video.yaml")
+    pipeline = Idea2VideoPipeline.init_from_env()
     await pipeline(idea=idea, user_requirement=user_requirement, style=style)
 
 if __name__ == "__main__":

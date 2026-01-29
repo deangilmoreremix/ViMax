@@ -11,6 +11,10 @@ import yaml
 from langchain.chat_models import init_chat_model
 from utils.rate_limiter import RateLimiter
 import importlib
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 class Idea2VideoPipeline:
@@ -34,23 +38,27 @@ class Idea2VideoPipeline:
             image_generator=self.image_generator)
 
     @classmethod
-    def init_from_config(
-        cls,
-        config_path: str,
-    ):
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
+    def init_from_env(cls):
+        # Load configuration from environment variables
+        chat_model_args = {
+            "model": os.getenv("CHAT_MODEL", "google/gemini-2.5-flash-lite-preview-09-2025"),
+            "model_provider": os.getenv("CHAT_MODEL_PROVIDER", "openai"),
+            "api_key": os.getenv("OPENROUTER_API_KEY"),
+            "base_url": os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+        }
 
-        chat_model_args = config["chat_model"]["init_args"]
+        if not chat_model_args["api_key"]:
+            raise ValueError("OPENROUTER_API_KEY environment variable is required")
+
         chat_model = init_chat_model(**chat_model_args)
 
         # Create separate rate limiters for each service
-        chat_model_rpm = config.get("chat_model", {}).get("max_requests_per_minute", None)
-        chat_model_rpd = config.get("chat_model", {}).get("max_requests_per_day", None)
-        image_generator_rpm = config.get("image_generator", {}).get("max_requests_per_minute", None)
-        image_generator_rpd = config.get("image_generator", {}).get("max_requests_per_day", None)
-        video_generator_rpm = config.get("video_generator", {}).get("max_requests_per_minute", None)
-        video_generator_rpd = config.get("video_generator", {}).get("max_requests_per_day", None)
+        chat_model_rpm = int(os.getenv("CHAT_MODEL_RPM", "500"))
+        chat_model_rpd = int(os.getenv("CHAT_MODEL_RPD", "2000"))
+        image_generator_rpm = int(os.getenv("IMAGE_GENERATOR_RPM", "10"))
+        image_generator_rpd = int(os.getenv("IMAGE_GENERATOR_RPD", "500"))
+        video_generator_rpm = int(os.getenv("VIDEO_GENERATOR_RPM", "2"))
+        video_generator_rpd = int(os.getenv("VIDEO_GENERATOR_RPD", "10"))
 
         chat_model_rate_limiter = RateLimiter(
             max_requests_per_minute=chat_model_rpm,
@@ -92,27 +100,30 @@ class Idea2VideoPipeline:
                 limits.append(f"{video_generator_rpd} req/day")
             print(f"Video generator rate limiting: {', '.join(limits)}")
 
-        image_generator_cls_module, image_generator_cls_name = config["image_generator"]["class_path"].rsplit(
-            ".", 1)
-        image_generator_cls = getattr(importlib.import_module(
-            image_generator_cls_module), image_generator_cls_name)
-        image_generator_args = config["image_generator"]["init_args"]
-        image_generator_args["rate_limiter"] = image_rate_limiter
-        image_generator = image_generator_cls(**image_generator_args)
+        # Initialize image generator
+        from tools.image_generator_nanobanana_google_api import ImageGeneratorNanobananaGoogleAPI
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+        if not google_api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is required")
+        image_generator = ImageGeneratorNanobananaGoogleAPI(
+            api_key=google_api_key,
+            rate_limiter=image_rate_limiter
+        )
 
-        video_generator_cls_module, video_generator_cls_name = config["video_generator"]["class_path"].rsplit(
-            ".", 1)
-        video_generator_cls = getattr(importlib.import_module(
-            video_generator_cls_module), video_generator_cls_name)
-        video_generator_args = config["video_generator"]["init_args"]
-        video_generator_args["rate_limiter"] = video_rate_limiter
-        video_generator = video_generator_cls(**video_generator_args)
+        # Initialize video generator
+        from tools.video_generator_veo_google_api import VideoGeneratorVeoGoogleAPI
+        video_generator = VideoGeneratorVeoGoogleAPI(
+            api_key=google_api_key,
+            rate_limiter=video_rate_limiter
+        )
+
+        working_dir = os.getenv("WORKING_DIR", ".working_dir")
 
         return cls(
             chat_model=chat_model,
             image_generator=image_generator,
             video_generator=video_generator,
-            working_dir=config["working_dir"],
+            working_dir=working_dir,
         )
 
     async def extract_characters(
