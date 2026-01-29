@@ -48,37 +48,6 @@ const FileUpload = ({ label, accept, file, setFile, error, setError, fileType, d
     }
   };
 
-  // Generate unique user ID
-  const generateUserId = () => {
-    return 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-  };
-
-  // Get API base URL from environment or default
-  const getApiBaseUrl = () => {
-    return process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
-  };
-
-  // Load user data
-  const loadUserData = async (uid) => {
-    try {
-      const apiBase = getApiBaseUrl();
-      const [userResponse, batchResponse] = await Promise.all([
-        axios.get(`${apiBase}/user/${uid}`),
-        axios.get(`${apiBase}/user/${uid}/batches`)
-      ]);
-
-      setUserHistory(userResponse.data.history || []);
-      setUserStats(userResponse.data.stats || {});
-      setUserBatches(batchResponse.data.batches || []);
-    } catch (error) {
-      console.error('Error loading user data:', error);
-      // Initialize empty data for new users
-      setUserHistory([]);
-      setUserStats({ total_generations: 0, total_videos: 0, average_rating: 0 });
-      setUserBatches([]);
-    }
-  };
-
   // Batch management functions
   const addBatchJob = () => {
     const newJob = {
@@ -461,6 +430,37 @@ function App() {
       localStorage.removeItem('vimax_api_key');
     }
   }, [apiKey]);
+
+  // Generate unique user ID
+  const generateUserId = () => {
+    return 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+  };
+
+  // Get API base URL from environment or default
+  const getApiBaseUrl = () => {
+    return process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+  };
+
+  // Load user data
+  const loadUserData = async (uid) => {
+    try {
+      const apiBase = getApiBaseUrl();
+      const [userResponse, batchResponse] = await Promise.all([
+        axios.get(`${apiBase}/user/${uid}`),
+        axios.get(`${apiBase}/user/${uid}/batches`)
+      ]);
+
+      setUserHistory(userResponse.data.history || []);
+      setUserStats(userResponse.data.stats || {});
+      setUserBatches(batchResponse.data.batches || []);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      // Initialize empty data for new users
+      setUserHistory([]);
+      setUserStats({ total_generations: 0, total_videos: 0, average_rating: 0 });
+      setUserBatches([]);
+    }
+  };
 
   // Enhanced WebSocket connection with reconnection
   useEffect(() => {
