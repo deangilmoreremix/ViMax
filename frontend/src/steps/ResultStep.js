@@ -1,5 +1,6 @@
 /* eslint-disable */
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import StoryboardPanel from '../components/StoryboardPanel';
 import './ResultStep.css';
 
 const STAR_LABELS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
@@ -12,16 +13,43 @@ const FOLLOW_UP_QUESTIONS = {
   5: "What did you love most about this video?",
 };
 
-export default function ResultStep({ jobId, onStartNew, onSubmitFeedback }) {
+export default function ResultStep({ jobId, scenes = [], onStartNew, onSubmitFeedback }) {
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
   const [followUp, setFollowUp] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [format, setFormat] = useState('mp4');
+  const [showStoryboard, setShowStoryboard] = useState(false);
+  const [storyboardMode, setStoryboardMode] = useState('grid');
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
+  const videoRef = useRef(null);
 
   const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
   const videoUrl = jobId ? `${apiBase}/job/${jobId}/download` : null;
+
+  const completedScenes = scenes.filter(s => s.image_url);
+  const posterUrl = completedScenes.length > 0
+    ? (completedScenes[0].image_url.startsWith('http')
+        ? completedScenes[0].image_url
+        : `${apiBase}${completedScenes[0].image_url}`)
+    : undefined;
+
+  const handleVideoMetadata = () => {
+    if (videoRef.current) setVideoDuration(videoRef.current.duration || 0);
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) setVideoCurrentTime(videoRef.current.currentTime);
+  };
+
+  const seekToScene = (sceneIndex) => {
+    if (!videoRef.current || !videoDuration || scenes.length === 0) return;
+    const secondsPerScene = videoDuration / scenes.length;
+    videoRef.current.currentTime = sceneIndex * secondsPerScene;
+    videoRef.current.play();
+  };
 
   const handleSubmitFeedback = async () => {
     if (!rating) return;
@@ -40,6 +68,10 @@ export default function ResultStep({ jobId, onStartNew, onSubmitFeedback }) {
     }
   };
 
+  const activeSceneIndex = videoDuration > 0 && scenes.length > 0
+    ? Math.floor((videoCurrentTime / videoDuration) * scenes.length)
+    : -1;
+
   return (
     <div className="result-step animate-fade-in-up">
       <div className="result-header">
@@ -57,10 +89,14 @@ export default function ResultStep({ jobId, onStartNew, onSubmitFeedback }) {
       <div className="result-video-wrapper">
         {videoUrl ? (
           <video
+            ref={videoRef}
             className="result-video-player"
             controls
             src={videoUrl}
             playsInline
+            poster={posterUrl}
+            onLoadedMetadata={handleVideoMetadata}
+            onTimeUpdate={handleTimeUpdate}
           />
         ) : (
           <div className="result-video-placeholder">
@@ -72,6 +108,30 @@ export default function ResultStep({ jobId, onStartNew, onSubmitFeedback }) {
           </div>
         )}
       </div>
+
+      {completedScenes.length > 0 && videoDuration > 0 && (
+        <div className="result-chapter-strip">
+          {completedScenes.map((scene, i) => {
+            const left = (i / completedScenes.length) * 100;
+            const width = 100 / completedScenes.length;
+            return (
+              <button
+                key={i}
+                className={`result-chapter-marker ${activeSceneIndex === i ? 'active' : ''}`}
+                style={{ left: `${left}%`, width: `${width}%` }}
+                onClick={() => seekToScene(i)}
+                title={`Scene ${i + 1}${scene.camera_angle ? ` — ${scene.camera_angle}` : ''}`}
+              >
+                <span className="result-chapter-num">{i + 1}</span>
+              </button>
+            );
+          })}
+          <div
+            className="result-chapter-playhead"
+            style={{ left: `${videoDuration > 0 ? (videoCurrentTime / videoDuration) * 100 : 0}%` }}
+          />
+        </div>
+      )}
 
       <div className="result-actions">
         <div className="result-format-row">
@@ -93,6 +153,21 @@ export default function ResultStep({ jobId, onStartNew, onSubmitFeedback }) {
           </svg>
           Download Video
         </button>
+        {completedScenes.length > 0 && (
+          <button
+            className={`result-storyboard-btn ${showStoryboard ? 'active' : ''}`}
+            onClick={() => setShowStoryboard(v => !v)}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="1" y="1" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.4" />
+              <rect x="9" y="1" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.4" />
+              <rect x="1" y="7" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.4" />
+              <rect x="9" y="7" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.4" />
+              <rect x="1" y="13" width="14" height="2" rx="1" stroke="currentColor" strokeWidth="1.4" />
+            </svg>
+            {showStoryboard ? 'Hide Storyboard' : 'Storyboard'}
+          </button>
+        )}
         <button className="result-new-btn" onClick={onStartNew}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -100,6 +175,16 @@ export default function ResultStep({ jobId, onStartNew, onSubmitFeedback }) {
           New Video
         </button>
       </div>
+
+      {showStoryboard && completedScenes.length > 0 && (
+        <div className="result-storyboard-section animate-fade-in">
+          <StoryboardPanel
+            scenes={completedScenes}
+            mode={storyboardMode}
+            onModeChange={setStoryboardMode}
+          />
+        </div>
+      )}
 
       {!feedbackSubmitted ? (
         <div className="result-feedback">

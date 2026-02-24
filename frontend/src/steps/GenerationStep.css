@@ -311,3 +311,52 @@
   border-color: var(--error-400);
   color: var(--error-500);
 }
+
+.ws-status.failed {
+  color: var(--warning-600);
+  border-color: rgba(245, 158, 11, 0.2);
+  background: var(--warning-50);
+}
+
+.ws-status.failed .ws-dot {
+  background: var(--warning-500);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.generation-scenes-loading {
+  margin-bottom: var(--space-6);
+}
+
+.generation-scenes-shimmer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.generation-scene-shimmer {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 2px solid var(--border);
+}
+
+.generation-scene-shimmer .shimmer-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.generation-scene-shimmer .shimmer-label {
+  height: 24px;
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.generation-scenes-loading-hint {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-align: center;
+}

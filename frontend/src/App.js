@@ -150,6 +150,7 @@ export default function App() {
           if (data.type === 'ping') ws.send(JSON.stringify({ type: 'pong' }));
           else if (data.type !== 'pong') {
             setJobStatus(data);
+            if (Array.isArray(data.scenes)) setScenes(data.scenes);
             if (data.status === 'completed') {
               setCurrentStep(STEP_RESULT);
               showSuccess('Your video is ready!');
@@ -166,6 +167,8 @@ export default function App() {
           reconnectAttempts.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
           reconnectRef.current = setTimeout(connect, delay);
+        } else if (reconnectAttempts.current >= maxAttempts) {
+          setWsStatus('failed');
         }
       };
 
@@ -180,6 +183,34 @@ export default function App() {
       clearTimeout(reconnectRef.current);
     };
   }, [jobId]);
+
+  const pollRef = useRef(null);
+
+  useEffect(() => {
+    if (wsStatus !== 'failed' || !jobId) return;
+    const poll = async () => {
+      try {
+        const apiBase = getApiBaseUrl();
+        const res = await fetch(`${apiBase}/job/${jobId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setJobStatus(data);
+          if (Array.isArray(data.scenes)) setScenes(data.scenes);
+          if (data.status === 'completed') {
+            clearInterval(pollRef.current);
+            setCurrentStep(STEP_RESULT);
+            showSuccess('Your video is ready!');
+            loadUserData(userId);
+          } else if (data.status === 'failed') {
+            clearInterval(pollRef.current);
+          }
+        }
+      } catch {}
+    };
+    pollRef.current = setInterval(poll, 5000);
+    poll();
+    return () => clearInterval(pollRef.current);
+  }, [wsStatus, jobId]);
 
   const updateForm = (updates) => setFormData(prev => ({ ...prev, ...updates }));
 
@@ -357,6 +388,7 @@ export default function App() {
         return (
           <ResultStep
             jobId={jobId}
+            scenes={scenes}
             onStartNew={handleNewVideo}
             onSubmitFeedback={handleSubmitFeedback}
           />

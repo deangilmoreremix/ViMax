@@ -874,6 +874,18 @@ async def run_pipeline(
         await update_step_status(current_status, 2)
         current_status["message"] = "Creating visual assets and images..."
         current_status["progress"] = 40
+        placeholder_scene_count = 5
+        current_status["scenes"] = [
+            {
+                "scene_index": i,
+                "status": "generating",
+                "image_url": None,
+                "camera_angle": None,
+                "duration_seconds": 4,
+                "script_line": None,
+            }
+            for i in range(placeholder_scene_count)
+        ]
         save_job_status(job_id, current_status)
         await manager.send_status_update(job_id, current_status)
 
@@ -895,6 +907,31 @@ async def run_pipeline(
                 with open(novel_path, 'r', encoding='utf-8') as f:
                     novel_content = f.read()
             await pipeline(novel_text=novel_content, style=style)
+
+        # Scan job directory for generated images and build real scene list
+        job_dir = Path(f"videos/{job_id}")
+        image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
+        image_files = sorted([
+            f for f in job_dir.glob("*")
+            if f.is_file() and f.suffix.lower() in image_extensions
+        ]) if job_dir.exists() else []
+        if image_files:
+            current_status["scenes"] = [
+                {
+                    "scene_index": i,
+                    "status": "completed",
+                    "image_url": f"/videos/{job_id}/{f.name}",
+                    "camera_angle": None,
+                    "duration_seconds": 4,
+                    "script_line": None,
+                }
+                for i, f in enumerate(image_files)
+            ]
+        else:
+            for scene in current_status.get("scenes", []):
+                scene["status"] = "completed"
+        save_job_status(job_id, current_status)
+        await manager.send_status_update(job_id, current_status)
 
         # Step 4: Video Assembly
         await update_step_status(current_status, 3)

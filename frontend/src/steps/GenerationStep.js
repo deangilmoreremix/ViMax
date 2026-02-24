@@ -1,5 +1,6 @@
 /* eslint-disable */
 import React, { useEffect, useRef, useState } from 'react';
+import StoryboardPanel from '../components/StoryboardPanel';
 import './GenerationStep.css';
 
 const STEP_ICONS = {
@@ -29,6 +30,7 @@ const STEP_ICONS = {
 
 export default function GenerationStep({ jobStatus, jobId, scenes, wsStatus, onCancel }) {
   const [elapsed, setElapsed] = useState(0);
+  const [storyboardMode, setStoryboardMode] = useState('grid');
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -48,6 +50,12 @@ export default function GenerationStep({ jobStatus, jobId, scenes, wsStatus, onC
   const message = jobStatus?.message || 'Initializing AI pipeline...';
   const currentStep = jobStatus?.current_step || '';
 
+  const imageStepActive = steps.some(
+    s => s.name === 'Image Generation' && (s.status === 'in_progress' || s.status === 'completed')
+  );
+
+  const showStoryboard = scenes && scenes.length > 0;
+
   return (
     <div className="generation-step animate-fade-in-up">
       <div className="generation-header">
@@ -60,7 +68,10 @@ export default function GenerationStep({ jobStatus, jobId, scenes, wsStatus, onC
         <div className="generation-header-right">
           <div className={`ws-status ${wsStatus}`}>
             <span className="ws-dot" />
-            {wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Connecting' : 'Offline'}
+            {wsStatus === 'connected' ? 'Live'
+              : wsStatus === 'connecting' ? 'Connecting'
+              : wsStatus === 'failed' ? 'Polling'
+              : 'Offline'}
           </div>
           <span className="generation-elapsed">{formatTime(elapsed)}</span>
         </div>
@@ -100,33 +111,25 @@ export default function GenerationStep({ jobStatus, jobId, scenes, wsStatus, onC
         </div>
       )}
 
-      {scenes && scenes.length > 0 && (
-        <div className="generation-scenes">
-          <h3 className="generation-scenes-title">Scene Previews</h3>
-          <div className="generation-scenes-grid">
-            {scenes.map((scene, i) => (
-              <div key={i} className={`generation-scene-card ${scene.status}`}>
-                {scene.image_url ? (
-                  <img src={scene.image_url} alt={`Scene ${i + 1}`} className="generation-scene-img" />
-                ) : (
-                  <div className="generation-scene-placeholder">
-                    {scene.status === 'generating' ? (
-                      <div className="generation-scene-spinner" />
-                    ) : (
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                        <path d="M9.5 9l5 3-5 3V9Z" fill="currentColor" />
-                      </svg>
-                    )}
-                  </div>
-                )}
-                <div className="generation-scene-label">
-                  <span>Scene {i + 1}</span>
-                  {scene.duration_seconds && <span>{scene.duration_seconds}s</span>}
-                </div>
+      {showStoryboard && (
+        <StoryboardPanel
+          scenes={scenes}
+          mode={storyboardMode}
+          onModeChange={setStoryboardMode}
+        />
+      )}
+
+      {imageStepActive && !showStoryboard && (
+        <div className="generation-scenes-loading">
+          <div className="generation-scenes-shimmer-grid">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="generation-scene-shimmer">
+                <div className="shimmer-img" />
+                <div className="shimmer-label" />
               </div>
             ))}
           </div>
+          <p className="generation-scenes-loading-hint">Generating scene previews...</p>
         </div>
       )}
 
