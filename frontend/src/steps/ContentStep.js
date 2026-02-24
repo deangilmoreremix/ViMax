@@ -5,8 +5,6 @@ import './ContentStep.css';
 const PIPELINE_INFO = {
   idea2video: {
     label: 'Idea2Video',
-    tagline: 'From Spark to Screen',
-    badge: 'Algorithm',
     accentColor: '#2563eb',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -14,16 +12,19 @@ const PIPELINE_INFO = {
         <path d="M7 10h6M10 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    description: 'Describe your idea — AI writes the full script, creates characters, and generates your video. Skip the technical complexity.',
-    callout: 'One-Prompt to Finished Video',
+    steps: [
+      'Type a plain-language description of your video concept below',
+      'Be specific — mention tone, setting, audience, and key message',
+      'Optionally click "Enhance with AI" to expand and refine your idea',
+      'Hit Next and the AI will write the full script and generate your video',
+    ],
+    tip: 'The more context you give, the better the output. Include brand name, visual style, or target emotion.',
     inputLabel: 'Your Video Idea',
     placeholder: 'Describe your video concept in detail. The more specific you are, the better the result.\n\nExample: "A product launch video for a premium noise-canceling headphone brand — sleek design, urban professional setting, dramatic lighting, showing someone blocking out city noise to focus."',
     maxLength: 2000,
   },
   script2video: {
     label: 'Script2Video',
-    tagline: 'Unlimited Screenplay Video Creation',
-    badge: 'Backend',
     accentColor: '#dc2626',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -31,16 +32,19 @@ const PIPELINE_INFO = {
         <path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    description: 'Upload or paste a screenplay-format script. Use scene headings (EXT./INT.), action lines, and dialogue. Complete control over every aspect.',
-    callout: 'Complete Creative Freedom',
+    steps: [
+      'Paste your screenplay directly into the text area, or upload a .txt / .md / .pdf file',
+      'Use standard screenplay format: scene headings (EXT./INT.), action lines, and dialogue',
+      'Each scene heading becomes a separate video segment',
+      'Hit Next and the AI will generate visuals for every scene in your script',
+    ],
+    tip: 'Scene headings like "EXT. CITY STREET - NIGHT" tell the AI exactly where each shot takes place.',
     inputLabel: 'Your Screenplay',
     placeholder: 'EXT. COFFEE SHOP - MORNING\n\nSARAH, 28, sits alone at a corner table, laptop open. The morning rush fills the café with noise.\n\nSARAH\n(typing intently)\nThis has to work...\n\nINT. COFFEE SHOP - CONTINUOUS\n\nThe BARISTA slides a coffee toward her.',
     maxLength: 10000,
   },
   novel2video: {
     label: 'Novel2Video',
-    tagline: 'Smart Literary Adaptation Engine',
-    badge: 'Frontend',
     accentColor: '#0d9488',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -49,25 +53,33 @@ const PIPELINE_INFO = {
         <path d="M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    description: 'Paste or upload a complete novel. AI intelligently compresses the narrative, tracks characters, and adapts each scene into video.',
-    callout: 'From Any Narrative to Reality',
+    steps: [
+      'Paste your novel or story text below, or upload a .txt / .md / .pdf file',
+      'The AI reads the full text and identifies key scenes, characters, and plot arcs',
+      'It automatically compresses long narratives into cinematic video segments',
+      'Hit Next to let the AI adapt your story into a complete video',
+    ],
+    tip: 'Works best with narratives that have clear scene transitions and vivid descriptions.',
     inputLabel: 'Your Novel / Story',
     placeholder: 'Paste your novel text here, or upload a .txt, .md, or .pdf file below...',
     maxLength: 50000,
   },
   cameo: {
     label: 'AutoCameo',
-    tagline: 'Generate Video from Your Photo',
-    badge: 'Backend',
-    accentColor: '#7c3aed',
+    accentColor: '#0ea5e9',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <rect x="2" y="4" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
         <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.5" />
       </svg>
     ),
-    description: 'Upload a photo and describe the scene. AI transforms you or your pet into a guest star across cinematic sequences and interactive storylines.',
-    callout: 'Make Your Own Cameo Video',
+    steps: [
+      'Upload a clear photo of the person or subject you want to appear in the video',
+      'Describe the scene — where they are, what they\'re doing, and the overall mood',
+      'Use the "Enhance with AI" button to expand a short idea into a full description',
+      'Hit Next and AI will place your subject into a cinematic video sequence',
+    ],
+    tip: 'Use a well-lit, front-facing photo with a simple background for the best results.',
     inputLabel: 'Scene Description',
     placeholder: 'Describe the scene where the photo subject should appear...\n\nExample: "A professional walking through a modern city, presenting a product to a business meeting."',
     maxLength: 2000,
@@ -132,18 +144,20 @@ export default function ContentStep({ formData, onUpdate, onEnhance, onError }) 
       <div className="content-info-banner" style={{ '--info-accent': info.accentColor }}>
         <div className="content-info-icon">{info.icon}</div>
         <div className="content-info-body">
-          <div className="content-info-top">
-            <span className="content-info-tagline">{info.tagline}</span>
-            <span className="content-info-badge">{info.badge}</span>
-          </div>
-          <p>{info.description}</p>
-          {info.callout && (
-            <span className="content-info-callout">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M6 1l1.24 3.63H11L8.38 6.77l.95 3.73L6 8.4 2.67 10.5l.95-3.73L1 4.63h3.76L6 1Z" fill="currentColor" />
+          <span className="content-info-how-label">How to use {info.label}</span>
+          <ol className="content-info-steps">
+            {info.steps.map((step, i) => (
+              <li key={i} className="content-info-step">{step}</li>
+            ))}
+          </ol>
+          {info.tip && (
+            <p className="content-info-tip">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" />
+                <path d="M6 5v3M6 3.5v.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
               </svg>
-              {info.callout}
-            </span>
+              {info.tip}
+            </p>
           )}
         </div>
       </div>
