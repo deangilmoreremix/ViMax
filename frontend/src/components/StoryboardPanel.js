@@ -1,23 +1,22 @@
 /* eslint-disable */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './StoryboardPanel.css';
 
 export default function StoryboardPanel({ scenes = [], mode = 'grid', onModeChange }) {
   const [activeScene, setActiveScene] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedScene, setSelectedScene] = useState(null);
+  const [failedImages, setFailedImages] = useState({});
   const animaticRef = useRef(null);
   const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
-  const completedScenes = scenes.filter(s => s.image_url);
-  const displayScenes = scenes;
+  const completedCount = scenes.filter(s => s.image_url).length;
 
   useEffect(() => {
-    if (!isPlaying || mode !== 'animatic') return;
-    const scene = displayScenes[activeScene];
-    const duration = (scene?.duration_seconds || 4) * 1000;
+    if (!isPlaying || mode !== 'animatic' || scenes.length === 0) return;
+    const duration = (scenes[activeScene]?.duration_seconds || 4) * 1000;
     animaticRef.current = setTimeout(() => {
-      if (activeScene < displayScenes.length - 1) {
+      if (activeScene < scenes.length - 1) {
         setActiveScene(i => i + 1);
       } else {
         setIsPlaying(false);
@@ -25,29 +24,44 @@ export default function StoryboardPanel({ scenes = [], mode = 'grid', onModeChan
       }
     }, duration);
     return () => clearTimeout(animaticRef.current);
-  }, [isPlaying, activeScene, mode, displayScenes]);
+  }, [isPlaying, activeScene, mode, scenes]);
 
-  const handlePlayPause = () => {
-    if (!isPlaying && activeScene >= displayScenes.length - 1) setActiveScene(0);
+  useEffect(() => {
+    if (activeScene >= scenes.length && scenes.length > 0) {
+      setActiveScene(scenes.length - 1);
+    }
+  }, [scenes.length]);
+
+  const handlePlayPause = useCallback(() => {
+    setActiveScene(prev => {
+      if (!isPlaying && prev >= scenes.length - 1) return 0;
+      return prev;
+    });
     setIsPlaying(p => !p);
-  };
+  }, [isPlaying, scenes.length]);
 
-  const handleSceneClick = (index) => {
+  const handleSceneClick = useCallback((index) => {
     if (mode === 'animatic') {
       setActiveScene(index);
       setIsPlaying(false);
     } else {
-      setSelectedScene(selectedScene === index ? null : index);
+      setSelectedScene(prev => (prev === index ? null : index));
     }
-  };
+  }, [mode]);
 
-  const getImageSrc = (url) => {
+  const handleImageError = useCallback((index) => {
+    setFailedImages(prev => ({ ...prev, [index]: true }));
+  }, []);
+
+  const getImageSrc = useCallback((url) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
     return `${apiBase}${url}`;
-  };
+  }, [apiBase]);
 
-  if (displayScenes.length === 0) return null;
+  if (scenes.length === 0) return null;
+
+  const currentScene = scenes[activeScene] || scenes[0];
 
   return (
     <div className="storyboard-panel">
@@ -57,7 +71,7 @@ export default function StoryboardPanel({ scenes = [], mode = 'grid', onModeChan
             {mode === 'animatic' ? 'Animatic Preview' : 'Scene Storyboard'}
           </h3>
           <span className="storyboard-count">
-            {completedScenes.length}/{displayScenes.length} scenes
+            {completedCount}/{scenes.length} scenes
           </span>
         </div>
         <div className="storyboard-header-right">
@@ -92,36 +106,46 @@ export default function StoryboardPanel({ scenes = [], mode = 'grid', onModeChan
       {mode === 'animatic' ? (
         <div className="storyboard-animatic">
           <div className="storyboard-animatic-stage">
-            {displayScenes[activeScene] ? (
-              displayScenes[activeScene].image_url ? (
-                <img
-                  src={getImageSrc(displayScenes[activeScene].image_url)}
-                  alt={`Scene ${activeScene + 1}`}
-                  className="storyboard-animatic-img"
-                />
-              ) : (
-                <div className="storyboard-animatic-placeholder">
-                  <div className="storyboard-animatic-spinner" />
-                  <span>Generating scene {activeScene + 1}...</span>
-                </div>
-              )
-            ) : null}
+            {currentScene.image_url && !failedImages[activeScene] ? (
+              <img
+                key={activeScene}
+                src={getImageSrc(currentScene.image_url)}
+                alt={`Scene ${activeScene + 1}`}
+                className="storyboard-animatic-img"
+                onError={() => handleImageError(activeScene)}
+              />
+            ) : (
+              <div className="storyboard-animatic-placeholder">
+                {currentScene.status === 'generating' ? (
+                  <>
+                    <div className="storyboard-animatic-spinner" />
+                    <span>Generating scene {activeScene + 1}...</span>
+                  </>
+                ) : (
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ opacity: 0.4 }}>
+                    <rect x="2" y="6" width="28" height="20" rx="3" stroke="currentColor" strokeWidth="2" />
+                    <path d="M12 12l8 4-8 4v-8Z" fill="currentColor" />
+                  </svg>
+                )}
+              </div>
+            )}
             <div className="storyboard-animatic-overlay">
               <span className="storyboard-animatic-scene-num">Scene {activeScene + 1}</span>
-              {displayScenes[activeScene]?.camera_angle && (
-                <span className="storyboard-animatic-camera">{displayScenes[activeScene].camera_angle}</span>
+              {currentScene.camera_angle && (
+                <span className="storyboard-animatic-camera">{currentScene.camera_angle}</span>
               )}
             </div>
             {isPlaying && (
               <div
+                key={`progress-${activeScene}`}
                 className="storyboard-animatic-progress"
-                style={{ animationDuration: `${(displayScenes[activeScene]?.duration_seconds || 4)}s` }}
+                style={{ animationDuration: `${currentScene.duration_seconds || 4}s` }}
               />
             )}
           </div>
 
-          {displayScenes[activeScene]?.script_line && (
-            <p className="storyboard-animatic-script">{displayScenes[activeScene].script_line}</p>
+          {currentScene.script_line && (
+            <p className="storyboard-animatic-script">{currentScene.script_line}</p>
           )}
 
           <div className="storyboard-animatic-controls">
@@ -134,7 +158,7 @@ export default function StoryboardPanel({ scenes = [], mode = 'grid', onModeChan
                 <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <button className="storyboard-play-btn" onClick={handlePlayPause}>
+            <button className="storyboard-play-btn" onClick={handlePlayPause} disabled={scenes.length === 0}>
               {isPlaying ? (
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                   <rect x="4" y="3" width="3.5" height="12" rx="1.5" fill="currentColor" />
@@ -148,8 +172,8 @@ export default function StoryboardPanel({ scenes = [], mode = 'grid', onModeChan
             </button>
             <button
               className="storyboard-ctrl-btn"
-              onClick={() => { setActiveScene(i => Math.min(displayScenes.length - 1, i + 1)); setIsPlaying(false); }}
-              disabled={activeScene === displayScenes.length - 1}
+              onClick={() => { setActiveScene(i => Math.min(scenes.length - 1, i + 1)); setIsPlaying(false); }}
+              disabled={activeScene === scenes.length - 1}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -158,14 +182,18 @@ export default function StoryboardPanel({ scenes = [], mode = 'grid', onModeChan
           </div>
 
           <div className="storyboard-filmstrip">
-            {displayScenes.map((scene, i) => (
+            {scenes.map((scene, i) => (
               <button
                 key={i}
-                className={`storyboard-filmstrip-thumb ${i === activeScene ? 'active' : ''} ${scene.status}`}
+                className={`storyboard-filmstrip-thumb ${i === activeScene ? 'active' : ''} ${scene.status || ''}`}
                 onClick={() => handleSceneClick(i)}
               >
-                {scene.image_url ? (
-                  <img src={getImageSrc(scene.image_url)} alt={`Scene ${i + 1}`} />
+                {scene.image_url && !failedImages[i] ? (
+                  <img
+                    src={getImageSrc(scene.image_url)}
+                    alt={`Scene ${i + 1}`}
+                    onError={() => handleImageError(i)}
+                  />
                 ) : (
                   <div className="storyboard-filmstrip-placeholder">
                     {scene.status === 'generating' && <div className="storyboard-mini-spinner" />}
@@ -178,18 +206,19 @@ export default function StoryboardPanel({ scenes = [], mode = 'grid', onModeChan
         </div>
       ) : (
         <div className="storyboard-grid">
-          {displayScenes.map((scene, i) => (
+          {scenes.map((scene, i) => (
             <div
               key={i}
-              className={`storyboard-card ${scene.status} ${selectedScene === i ? 'expanded' : ''}`}
+              className={`storyboard-card ${scene.status || ''} ${selectedScene === i ? 'expanded' : ''}`}
               onClick={() => handleSceneClick(i)}
             >
               <div className="storyboard-card-image">
-                {scene.image_url ? (
+                {scene.image_url && !failedImages[i] ? (
                   <img
                     src={getImageSrc(scene.image_url)}
                     alt={`Scene ${i + 1}`}
                     loading="lazy"
+                    onError={() => handleImageError(i)}
                   />
                 ) : (
                   <div className="storyboard-card-placeholder">
@@ -204,7 +233,7 @@ export default function StoryboardPanel({ scenes = [], mode = 'grid', onModeChan
                   </div>
                 )}
                 <div className="storyboard-card-num">{i + 1}</div>
-                {scene.status === 'completed' && (
+                {scene.status === 'completed' && !failedImages[i] && scene.image_url && (
                   <div className="storyboard-card-badge">
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                       <circle cx="5" cy="5" r="5" fill="#10b981" />

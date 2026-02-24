@@ -928,8 +928,7 @@ async def run_pipeline(
                 for i, f in enumerate(image_files)
             ]
         else:
-            for scene in current_status.get("scenes", []):
-                scene["status"] = "completed"
+            current_status["scenes"] = []
         save_job_status(job_id, current_status)
         await manager.send_status_update(job_id, current_status)
 

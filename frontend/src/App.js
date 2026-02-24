@@ -210,7 +210,7 @@ export default function App() {
     pollRef.current = setInterval(poll, 5000);
     poll();
     return () => clearInterval(pollRef.current);
-  }, [wsStatus, jobId]);
+  }, [wsStatus, jobId, userId]);
 
   const updateForm = (updates) => setFormData(prev => ({ ...prev, ...updates }));
 
