@@ -17,6 +17,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _build_image_generator(name: str, rate_limiter=None):
+    from tools.factory import build_image_generator
+    return build_image_generator(name, rate_limiter)
+
+
 class Idea2VideoPipeline:
     def __init__(
         self,
@@ -38,7 +43,7 @@ class Idea2VideoPipeline:
             image_generator=self.image_generator)
 
     @classmethod
-    def init_from_env(cls):
+    def init_from_env(cls, image_generator_name: str = "google"):
         # Load configuration from environment variables
         chat_model_args = {
             "model": os.getenv("CHAT_MODEL", "google/gemini-2.5-flash-lite-preview-09-2025"),
@@ -100,18 +105,12 @@ class Idea2VideoPipeline:
                 limits.append(f"{video_generator_rpd} req/day")
             print(f"Video generator rate limiting: {', '.join(limits)}")
 
-        # Initialize image generator
-        from tools.image_generator_nanobanana_google_api import ImageGeneratorNanobananaGoogleAPI
-        google_api_key = os.getenv("GOOGLE_API_KEY")
-        if not google_api_key:
-            raise ValueError("GOOGLE_API_KEY environment variable is required")
-        image_generator = ImageGeneratorNanobananaGoogleAPI(
-            api_key=google_api_key,
-            rate_limiter=image_rate_limiter
-        )
+        # Initialize image generator via factory
+        image_generator = _build_image_generator(image_generator_name, image_rate_limiter)
 
         # Initialize video generator
         from tools.video_generator_veo_google_api import VideoGeneratorVeoGoogleAPI
+        google_api_key = os.getenv("GOOGLE_API_KEY")
         video_generator = VideoGeneratorVeoGoogleAPI(
             api_key=google_api_key,
             rate_limiter=video_rate_limiter

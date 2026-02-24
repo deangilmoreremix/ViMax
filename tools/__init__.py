@@ -2,6 +2,7 @@
 from .image_generator_doubao_seedream_yunwu_api import ImageGeneratorDoubaoSeedreamYunwuAPI
 from .image_generator_nanobanana_google_api import ImageGeneratorNanobananaGoogleAPI
 from .image_generator_nanobanana_yunwu_api import ImageGeneratorNanobananaYunwuAPI
+from .image_generator_freepik_mystic_api import ImageGeneratorFreepikMysticAPI
 
 
 # reranker for rag
@@ -18,6 +19,7 @@ __all__ = [
     "ImageGeneratorDoubaoSeedreamYunwuAPI",
     "ImageGeneratorNanobananaGoogleAPI",
     "ImageGeneratorNanobananaYunwuAPI",
+    "ImageGeneratorFreepikMysticAPI",
     "RerankerBgeSiliconapi",
     "VideoGeneratorDoubaoSeedanceYunwuAPI",
     "VideoGeneratorVeoGoogleAPI",

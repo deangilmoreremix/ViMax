@@ -73,6 +73,7 @@ const QUALITY_PRESETS = [
 const ADVANCED_OPTIONS = {
   imageGenerator: [
     { value: 'google', label: 'Google Imagen', desc: 'Highest quality' },
+    { value: 'freepik', label: 'Freepik Mystic', desc: '1K–4K photorealistic' },
     { value: 'yunwu_nanobanana', label: 'Yunwu Nanobanana', desc: 'Fast' },
     { value: 'yunwu_doubao', label: 'Yunwu Doubao', desc: 'Balanced' },
   ],

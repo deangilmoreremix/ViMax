@@ -152,6 +152,11 @@ app.add_middleware(
 # Global pipeline instances
 pipelines = {}
 
+
+def create_image_generator(name: str, rate_limiter=None):
+    from tools.factory import build_image_generator
+    return build_image_generator(name, rate_limiter)
+
 # Job status storage directory
 JOB_STATUS_DIR = Path("job_status")
 JOB_STATUS_DIR.mkdir(exist_ok=True)
@@ -346,22 +351,26 @@ def get_system_stats():
     except:
         return {"error": "Could not retrieve system stats"}
 
-def get_pipeline(pipeline_type: str):
-    """Get or create pipeline instance"""
-    # Map cameo to idea2video pipeline
+def get_pipeline(pipeline_type: str, image_generator: str = "google"):
+    """Get or create pipeline instance, keyed by (pipeline_type, image_generator)."""
     actual_pipeline_type = "idea2video" if pipeline_type == "cameo" else pipeline_type
+    cache_key = (actual_pipeline_type, image_generator)
 
-    if actual_pipeline_type not in pipelines:
+    if cache_key not in pipelines:
         if actual_pipeline_type == "idea2video":
-            pipelines[actual_pipeline_type] = Idea2VideoPipeline.init_from_env()
+            pipelines[cache_key] = Idea2VideoPipeline.init_from_env(image_generator_name=image_generator)
         elif actual_pipeline_type == "script2video":
             from pipelines.script2video_pipeline import Script2VideoPipeline
-            pipelines[actual_pipeline_type] = Script2VideoPipeline.init_from_config("configs/script2video.yaml")
+            pipelines[cache_key] = Script2VideoPipeline.init_from_config(
+                "configs/script2video.yaml", image_generator_name=image_generator
+            )
         elif actual_pipeline_type == "novel2video":
-            pipelines[actual_pipeline_type] = Novel2MoviePipeline.init_from_config("configs/script2video.yaml")
+            pipelines[cache_key] = Novel2MoviePipeline.init_from_config(
+                "configs/script2video.yaml", image_generator_name=image_generator
+            )
         else:
             raise ValueError(f"Unknown pipeline type: {pipeline_type}")
-    return pipelines[actual_pipeline_type]
+    return pipelines[cache_key]
 
 # WebSocket connection manager with enhanced reliability
 class ConnectionManager:
@@ -889,8 +898,8 @@ async def run_pipeline(
         save_job_status(job_id, current_status)
         await manager.send_status_update(job_id, current_status)
 
-        # Get the appropriate pipeline
-        pipeline = get_pipeline(pipeline_type)
+        # Get the appropriate pipeline (keyed by type + image generator)
+        pipeline = get_pipeline(pipeline_type, image_generator)
 
         # Execute based on pipeline type
         if pipeline_type in ["idea2video", "cameo"]:

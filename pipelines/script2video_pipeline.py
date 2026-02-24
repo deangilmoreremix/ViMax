@@ -14,6 +14,14 @@ from langchain.chat_models import init_chat_model
 from utils.timer import Timer
 from utils.rate_limiter import RateLimiter
 import importlib
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def _build_image_generator(name: str, rate_limiter=None):
+    from tools.factory import build_image_generator
+    return build_image_generator(name, rate_limiter)
+
 
 class Script2VideoPipeline:
 
@@ -50,6 +58,7 @@ class Script2VideoPipeline:
     def init_from_config(
         cls,
         config_path: str,
+        image_generator_name: str = None,
     ):
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
@@ -105,11 +114,14 @@ class Script2VideoPipeline:
                 limits.append(f"{video_generator_rpd} req/day")
             print(f"Video generator rate limiting: {', '.join(limits)}")
 
-        image_generator_cls_module, image_generator_cls_name = config["image_generator"]["class_path"].rsplit(".", 1)
-        image_generator_cls = getattr(importlib.import_module(image_generator_cls_module), image_generator_cls_name)
-        image_generator_args = config["image_generator"]["init_args"]
-        image_generator_args["rate_limiter"] = image_rate_limiter
-        image_generator = image_generator_cls(**image_generator_args)
+        if image_generator_name:
+            image_generator = _build_image_generator(image_generator_name, image_rate_limiter)
+        else:
+            image_generator_cls_module, image_generator_cls_name = config["image_generator"]["class_path"].rsplit(".", 1)
+            image_generator_cls = getattr(importlib.import_module(image_generator_cls_module), image_generator_cls_name)
+            image_generator_args = config["image_generator"]["init_args"]
+            image_generator_args["rate_limiter"] = image_rate_limiter
+            image_generator = image_generator_cls(**image_generator_args)
 
         video_generator_cls_module, video_generator_cls_name = config["video_generator"]["class_path"].rsplit(".", 1)
         video_generator_cls = getattr(importlib.import_module(video_generator_cls_module), video_generator_cls_name)
