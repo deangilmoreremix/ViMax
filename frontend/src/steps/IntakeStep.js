@@ -6,9 +6,10 @@ const AI_RESPONSES = {
   greeting: "Hi! I'm your AI video creation assistant. What kind of video do you want to make today?",
   idea: "That sounds like a great concept! A few quick questions to help me set things up perfectly for you — who is this video for? (e.g., customers, social media followers, personal use)",
   audience: "Got it! And what tone are you going for? Something serious and polished, fun and energetic, or somewhere in between?",
-  tone: "Perfect. One last thing — do you have existing content like a script or a novel, or would you like me to generate everything from your idea?",
+  tone: "Perfect. One last thing — do you have existing content like a script or a novel, or would you like me to generate everything from your idea? You can also star in the video yourself using AutoCameo!",
   hasContent: "Great, you can paste or upload your content on the next screen. Based on what you've told me, I'd recommend using the {pipeline} pipeline with a {style} style. Ready to continue?",
   noContent: "No problem! I'll help build the full story from your idea. I'd suggest the {pipeline} pipeline with a {style} style — it's perfect for what you're describing. Ready to start?",
+  cameo: "How exciting! AutoCameo will transform you into a guest star across any cinematic scene. Upload your photo on the next screen and we'll do the rest. Ready to become the star?",
 };
 
 const PIPELINE_SUGGESTIONS = {
@@ -17,10 +18,24 @@ const PIPELINE_SUGGESTIONS = {
   personal: { pipeline: 'idea2video', style: 'Realistic' },
   script: { pipeline: 'script2video', style: 'Cinematic' },
   novel: { pipeline: 'novel2video', style: 'Cinematic' },
+  cameo: { pipeline: 'cameo', style: 'Cinematic' },
   default: { pipeline: 'idea2video', style: 'Cinematic' },
 };
 
+const PIPELINE_DISPLAY_NAMES = {
+  idea2video: 'Idea2Video',
+  script2video: 'Script2Video',
+  novel2video: 'Novel2Video',
+  cameo: 'AutoCameo',
+};
+
+function detectCameoIntent(text) {
+  const t = text.toLowerCase();
+  return t.includes('myself') || t.includes('my photo') || t.includes('my pet') || t.includes('appear in') || t.includes('star in') || t.includes('cameo') || t.includes('autocameo') || t.includes('my face') || t.includes('my picture');
+}
+
 function detectSuggestion(answers) {
+  if (answers.hasContent === 'cameo') return PIPELINE_SUGGESTIONS.cameo;
   if (answers.hasContent === 'script') return PIPELINE_SUGGESTIONS.script;
   if (answers.hasContent === 'novel') return PIPELINE_SUGGESTIONS.novel;
   if (answers.audience && answers.audience.toLowerCase().includes('social')) return PIPELINE_SUGGESTIONS.social;
@@ -74,18 +89,22 @@ export default function IntakeStep({ onComplete, onSkip }) {
       setStage('content');
       addAssistantMessage(AI_RESPONSES.tone);
     } else if (stage === 'content') {
-      const hasContent = userMessage.toLowerCase().includes('script') ? 'script'
+      const hasContent = detectCameoIntent(userMessage) ? 'cameo'
+        : userMessage.toLowerCase().includes('script') ? 'script'
         : userMessage.toLowerCase().includes('novel') ? 'novel'
         : 'none';
       const newAnswers = { ...answers, hasContent };
       setAnswers(newAnswers);
       const suggestion = detectSuggestion(newAnswers);
-      const responseTemplate = hasContent !== 'none' ? AI_RESPONSES.hasContent : AI_RESPONSES.noContent;
-      const responseText = responseTemplate
-        .replace('{pipeline}', suggestion.pipeline === 'idea2video' ? 'Idea to Video'
-          : suggestion.pipeline === 'script2video' ? 'Script to Video'
-          : 'Novel to Video')
-        .replace('{style}', suggestion.style);
+      let responseText;
+      if (hasContent === 'cameo') {
+        responseText = AI_RESPONSES.cameo;
+      } else {
+        const responseTemplate = hasContent !== 'none' ? AI_RESPONSES.hasContent : AI_RESPONSES.noContent;
+        responseText = responseTemplate
+          .replace('{pipeline}', PIPELINE_DISPLAY_NAMES[suggestion.pipeline] || suggestion.pipeline)
+          .replace('{style}', suggestion.style);
+      }
       setStage('done');
       setIsDone(true);
       addAssistantMessage(responseText);
@@ -118,16 +137,20 @@ export default function IntakeStep({ onComplete, onSkip }) {
       if (stage === 'content') {
         const hasContent = text === 'I have a script' ? 'script'
           : text === 'I have a novel' ? 'novel'
+          : text === 'I want to star in the video' ? 'cameo'
           : 'none';
         const newAnswers = { ...answers, hasContent };
         setAnswers(newAnswers);
         const suggestion = detectSuggestion(newAnswers);
-        const responseTemplate = hasContent !== 'none' ? AI_RESPONSES.hasContent : AI_RESPONSES.noContent;
-        const responseText = responseTemplate
-          .replace('{pipeline}', suggestion.pipeline === 'idea2video' ? 'Idea to Video'
-            : suggestion.pipeline === 'script2video' ? 'Script to Video'
-            : 'Novel to Video')
-          .replace('{style}', suggestion.style);
+        let responseText;
+        if (hasContent === 'cameo') {
+          responseText = AI_RESPONSES.cameo;
+        } else {
+          const responseTemplate = hasContent !== 'none' ? AI_RESPONSES.hasContent : AI_RESPONSES.noContent;
+          responseText = responseTemplate
+            .replace('{pipeline}', PIPELINE_DISPLAY_NAMES[suggestion.pipeline] || suggestion.pipeline)
+            .replace('{style}', suggestion.style);
+        }
         setStage('done');
         setIsDone(true);
         addAssistantMessage(responseText);
@@ -145,7 +168,7 @@ export default function IntakeStep({ onComplete, onSkip }) {
   };
 
   const QUICK_OPTIONS = {
-    content: ['Generate everything from my idea', 'I have a script', 'I have a novel'],
+    content: ['Generate everything from my idea', 'I have a script', 'I have a novel', 'I want to star in the video'],
   };
 
   return (

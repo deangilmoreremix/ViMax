@@ -4,33 +4,44 @@ import './ContentStep.css';
 
 const PIPELINE_INFO = {
   idea2video: {
-    label: 'Idea to Video',
+    label: 'Idea2Video',
+    tagline: 'From Spark to Screen',
+    badge: 'Algorithm',
+    accentColor: '#2563eb',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
         <path d="M7 10h6M10 7v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    description: 'Describe your idea and our AI writes the full script, creates characters, and generates your video.',
+    description: 'Describe your idea — AI writes the full script, creates characters, and generates your video. Skip the technical complexity.',
+    callout: 'One-Prompt to Finished Video',
     inputLabel: 'Your Video Idea',
     placeholder: 'Describe your video concept in detail. The more specific you are, the better the result.\n\nExample: "A product launch video for a premium noise-canceling headphone brand — sleek design, urban professional setting, dramatic lighting, showing someone blocking out city noise to focus."',
     maxLength: 2000,
   },
   script2video: {
-    label: 'Script to Video',
+    label: 'Script2Video',
+    tagline: 'Unlimited Screenplay Video Creation',
+    badge: 'Backend',
+    accentColor: '#dc2626',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M5 3h10a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1Z" stroke="currentColor" strokeWidth="1.5" />
         <path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    description: 'Upload or paste a screenplay-format script. Use scene headings (EXT./INT.), action lines, and dialogue.',
+    description: 'Upload or paste a screenplay-format script. Use scene headings (EXT./INT.), action lines, and dialogue. Complete control over every aspect.',
+    callout: 'Complete Creative Freedom',
     inputLabel: 'Your Screenplay',
     placeholder: 'EXT. COFFEE SHOP - MORNING\n\nSARAH, 28, sits alone at a corner table, laptop open. The morning rush fills the café with noise.\n\nSARAH\n(typing intently)\nThis has to work...\n\nINT. COFFEE SHOP - CONTINUOUS\n\nThe BARISTA slides a coffee toward her.',
     maxLength: 10000,
   },
   novel2video: {
-    label: 'Novel to Video',
+    label: 'Novel2Video',
+    tagline: 'Smart Literary Adaptation Engine',
+    badge: 'Frontend',
+    accentColor: '#0d9488',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M4 3h8l4 4v10H4V3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -38,20 +49,25 @@ const PIPELINE_INFO = {
         <path d="M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    description: 'Paste or upload a novel or story. Our AI compresses and adapts it into a compelling video.',
+    description: 'Paste or upload a complete novel. AI intelligently compresses the narrative, tracks characters, and adapts each scene into video.',
+    callout: 'From Any Narrative to Reality',
     inputLabel: 'Your Novel / Story',
     placeholder: 'Paste your novel text here, or upload a .txt, .md, or .pdf file below...',
     maxLength: 50000,
   },
   cameo: {
-    label: 'Photo Cameo',
+    label: 'AutoCameo',
+    tagline: 'Generate Video from Your Photo',
+    badge: 'Backend',
+    accentColor: '#7c3aed',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <rect x="2" y="4" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
         <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.5" />
       </svg>
     ),
-    description: 'Place yourself or someone else in a generated video using a photo.',
+    description: 'Upload a photo and describe the scene. AI transforms you or your pet into a guest star across cinematic sequences and interactive storylines.',
+    callout: 'Make Your Own Cameo Video',
     inputLabel: 'Scene Description',
     placeholder: 'Describe the scene where the photo subject should appear...\n\nExample: "A professional walking through a modern city, presenting a product to a business meeting."',
     maxLength: 2000,
@@ -59,10 +75,10 @@ const PIPELINE_INFO = {
 };
 
 const PIPELINE_OPTIONS = [
-  { value: 'idea2video', label: 'Idea to Video', desc: 'Start from a concept' },
-  { value: 'script2video', label: 'Script to Video', desc: 'Use a screenplay' },
-  { value: 'novel2video', label: 'Novel to Video', desc: 'Adapt written work' },
-  { value: 'cameo', label: 'Photo Cameo', desc: 'Star in a video' },
+  { value: 'idea2video', label: 'Idea2Video', desc: 'Start from a concept' },
+  { value: 'script2video', label: 'Script2Video', desc: 'Use a screenplay' },
+  { value: 'novel2video', label: 'Novel2Video', desc: 'Adapt written work' },
+  { value: 'cameo', label: 'AutoCameo', desc: 'Star in a video' },
 ];
 
 export default function ContentStep({ formData, onUpdate, onEnhance }) {
@@ -110,9 +126,23 @@ export default function ContentStep({ formData, onUpdate, onEnhance }) {
         ))}
       </div>
 
-      <div className="content-info-banner">
+      <div className="content-info-banner" style={{ '--info-accent': info.accentColor }}>
         <div className="content-info-icon">{info.icon}</div>
-        <p>{info.description}</p>
+        <div className="content-info-body">
+          <div className="content-info-top">
+            <span className="content-info-tagline">{info.tagline}</span>
+            <span className="content-info-badge">{info.badge}</span>
+          </div>
+          <p>{info.description}</p>
+          {info.callout && (
+            <span className="content-info-callout">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M6 1l1.24 3.63H11L8.38 6.77l.95 3.73L6 8.4 2.67 10.5l.95-3.73L1 4.63h3.76L6 1Z" fill="currentColor" />
+              </svg>
+              {info.callout}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="content-form-group">

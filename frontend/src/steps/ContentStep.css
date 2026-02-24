@@ -90,29 +90,73 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--primary-50);
-  border: 1px solid var(--primary-200);
+  padding: var(--space-4) var(--space-5);
+  background: color-mix(in srgb, var(--info-accent, #2563eb) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--info-accent, #2563eb) 20%, transparent);
   border-radius: var(--radius-xl);
   margin-bottom: var(--space-6);
-  color: var(--primary-800);
 }
 
 [data-theme="dark"] .content-info-banner {
-  background: rgba(59, 130, 246, 0.08);
-  border-color: rgba(59, 130, 246, 0.2);
-  color: var(--primary-300);
+  background: color-mix(in srgb, var(--info-accent, #2563eb) 8%, transparent);
+  border-color: color-mix(in srgb, var(--info-accent, #2563eb) 20%, transparent);
 }
 
 .content-info-icon {
-  color: var(--primary-600);
+  color: var(--info-accent, var(--primary-600));
   flex-shrink: 0;
   padding-top: 2px;
+}
+
+.content-info-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.content-info-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 2px;
+}
+
+.content-info-tagline {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--info-accent, var(--primary-600));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.content-info-badge {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--info-accent, var(--primary-600));
+  background: color-mix(in srgb, var(--info-accent, #2563eb) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--info-accent, #2563eb) 25%, transparent);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
 }
 
 .content-info-banner p {
   font-size: var(--text-sm);
   line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.content-info-callout {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--info-accent, var(--primary-600));
+  margin-top: var(--space-1);
 }
 
 .content-form-group {

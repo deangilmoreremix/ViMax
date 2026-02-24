@@ -29,10 +29,10 @@ const STATUS_ICONS = {
 };
 
 const PIPELINE_LABELS = {
-  idea2video: 'Idea → Video',
-  script2video: 'Script → Video',
-  novel2video: 'Novel → Video',
-  cameo: 'Photo Cameo',
+  idea2video: 'Idea2Video',
+  script2video: 'Script2Video',
+  novel2video: 'Novel2Video',
+  cameo: 'AutoCameo',
 };
 
 export default function HistoryView({ history, onReuse }) {

@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar';
 import WizardProgress from './components/WizardProgress';
 import TemplateLibrary from './components/TemplateLibrary';
 import HistoryView from './components/HistoryView';
+import PipelineSelectStep from './steps/PipelineSelectStep';
 import IntakeStep from './steps/IntakeStep';
 import ContentStep from './steps/ContentStep';
 import StyleStep from './steps/StyleStep';
@@ -65,6 +66,8 @@ export default function App() {
   const [userHistory, setUserHistory] = useState([]);
   const [userStats, setUserStats] = useState({});
   const [userBatches, setUserBatches] = useState([]);
+
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
 
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
@@ -255,6 +258,12 @@ export default function App() {
     setJobStatus(null);
     setScenes([]);
     setActiveView('wizard');
+    setShowAIAssistant(false);
+  };
+
+  const handlePipelineSelect = (pipelineValue) => {
+    updateForm({ pipeline: pipelineValue });
+    setCurrentStep(STEP_CONTENT);
   };
 
   const canProceedFromContent = () => {
@@ -269,10 +278,18 @@ export default function App() {
   const renderWizardContent = () => {
     switch (currentStep) {
       case STEP_INTAKE:
+        if (showAIAssistant) {
+          return (
+            <IntakeStep
+              onComplete={handleIntakeComplete}
+              onSkip={() => { setShowAIAssistant(false); setCurrentStep(STEP_CONTENT); }}
+            />
+          );
+        }
         return (
-          <IntakeStep
-            onComplete={handleIntakeComplete}
-            onSkip={() => setCurrentStep(STEP_CONTENT)}
+          <PipelineSelectStep
+            onSelect={handlePipelineSelect}
+            onUseAI={() => setShowAIAssistant(true)}
           />
         );
       case STEP_CONTENT:
