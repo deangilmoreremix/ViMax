@@ -20,6 +20,7 @@ import {
   insertFeedback,
   incrementTemplateUsage,
   getUserBatches,
+  trackPipelineSelection,
 } from './supabase';
 import './App.css';
 
@@ -35,6 +36,14 @@ function generateUserId() {
 
 function getApiBaseUrl() {
   return process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+}
+
+function getGenerateVideoUrl() {
+  const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+  if (supabaseUrl) {
+    return `${supabaseUrl}/functions/v1/generate-video-proxy`;
+  }
+  return `${getApiBaseUrl()}/generate-video`;
 }
 
 const DEFAULT_FORM = {
@@ -175,11 +184,13 @@ export default function App() {
   const updateForm = (updates) => setFormData(prev => ({ ...prev, ...updates }));
 
   const handleIntakeComplete = (result) => {
+    const pipeline = result.pipeline || 'idea2video';
     updateForm({
       idea: result.idea || '',
-      pipeline: result.pipeline || 'idea2video',
+      pipeline,
       style: result.style || 'Cinematic',
     });
+    try { trackPipelineSelection({ userId, pipelineType: pipeline, source: 'ai_assistant' }); } catch {}
     setCurrentStep(STEP_CONTENT);
   };
 
@@ -225,17 +236,43 @@ export default function App() {
     if (formData.novelFile) form.append('novel_file', formData.novelFile);
     if (formData.photoFile) form.append('photo_file', formData.photoFile);
 
-    const headers = { 'Content-Type': 'multipart/form-data' };
-    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    const headers = {};
+    const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+    if (anonKey) {
+      headers['Authorization'] = `Bearer ${anonKey}`;
+      headers['Apikey'] = anonKey;
+    } else if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
 
     try {
       showInfo('Starting video generation...', 3000);
-      const response = await axios.post(`${getApiBaseUrl()}/generate-video`, form, { headers });
-      setJobId(response.data.job_id);
+      const response = await axios.post(getGenerateVideoUrl(), form, { headers });
+      const newJobId = response.data.job_id;
+      setJobId(newJobId);
       setJobStatus({ status: 'processing', progress: 0, message: 'Starting...' });
       setCurrentStep(STEP_GENERATION);
+      try {
+        await insertJob({
+          id: newJobId,
+          user_id: userId,
+          pipeline_type: formData.pipeline,
+          idea: formData.idea,
+          script: formData.script,
+          style: formData.style,
+          quality: formData.quality,
+          resolution: formData.resolution,
+          status: 'processing',
+        });
+      } catch {}
     } catch (err) {
-      showError('Failed to start generation. Please check your API key and try again.');
+      const detail = err?.response?.data?.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map(d => d.msg || d).join('; ')
+          : 'Failed to start generation. Please check your API key and try again.';
+      showError(message);
     }
   };
 
@@ -262,7 +299,17 @@ export default function App() {
   };
 
   const handlePipelineSelect = (pipelineValue) => {
-    updateForm({ pipeline: pipelineValue });
+    setFormData(prev => ({
+      ...prev,
+      pipeline: pipelineValue,
+      idea: '',
+      script: '',
+      requirement: '',
+      scriptFile: null,
+      novelFile: null,
+      photoFile: null,
+    }));
+    try { trackPipelineSelection({ userId, pipelineType: pipelineValue, source: 'card' }); } catch {}
     setCurrentStep(STEP_CONTENT);
   };
 
@@ -271,7 +318,7 @@ export default function App() {
     if (pipeline === 'idea2video') return idea.trim().length > 10;
     if (pipeline === 'script2video') return script.trim().length > 20 || formData.scriptFile;
     if (pipeline === 'novel2video') return script.trim().length > 20 || formData.novelFile || formData.scriptFile;
-    if (pipeline === 'cameo') return idea.trim().length > 5;
+    if (pipeline === 'cameo') return idea.trim().length > 5 && !!photoFile;
     return true;
   };
 
@@ -293,7 +340,7 @@ export default function App() {
           />
         );
       case STEP_CONTENT:
-        return <ContentStep formData={formData} onUpdate={updateForm} />;
+        return <ContentStep formData={formData} onUpdate={updateForm} onEnhance={() => {}} onError={showError} />;
       case STEP_STYLE:
         return <StyleStep formData={formData} onUpdate={updateForm} />;
       case STEP_GENERATION:

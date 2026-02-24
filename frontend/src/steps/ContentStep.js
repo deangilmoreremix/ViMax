@@ -81,7 +81,10 @@ const PIPELINE_OPTIONS = [
   { value: 'cameo', label: 'AutoCameo', desc: 'Star in a video' },
 ];
 
-export default function ContentStep({ formData, onUpdate, onEnhance }) {
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
+
+export default function ContentStep({ formData, onUpdate, onEnhance, onError }) {
   const { pipeline, idea, script, requirement } = formData;
   const fileInputRef = useRef(null);
   const photoFileRef = useRef(null);
@@ -210,7 +213,18 @@ export default function ContentStep({ formData, onUpdate, onEnhance }) {
             className="content-file-input-hidden"
             onChange={(e) => {
               const file = e.target.files[0];
-              if (file) onUpdate({ photoFile: file });
+              if (!file) return;
+              if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+                onError && onError('Only JPG, PNG, and WebP images are allowed.');
+                e.target.value = '';
+                return;
+              }
+              if (file.size > MAX_PHOTO_SIZE) {
+                onError && onError('Photo must be under 10MB.');
+                e.target.value = '';
+                return;
+              }
+              onUpdate({ photoFile: file });
             }}
           />
           <div

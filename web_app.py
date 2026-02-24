@@ -15,7 +15,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from pipelines.idea2video_pipeline import Idea2VideoPipeline
 from pipelines.script2video_pipeline import Script2VideoPipeline
-# from pipelines.novel2movie_pipeline import Novel2MoviePipeline  # Temporarily disabled for testing
+from pipelines.novel2movie_pipeline import Novel2MoviePipeline
 
 # Load environment variables
 load_dotenv()
@@ -40,13 +40,15 @@ class VideoGenerationRequest(BaseModel):
 
     @validator('pipeline_type')
     def validate_pipeline_type(cls, v):
-        allowed = ['idea2video', 'script2video', 'cameo']
+        allowed = ['idea2video', 'script2video', 'novel2video', 'cameo']
         if v not in allowed:
             raise ValueError(f'Pipeline type must be one of: {allowed}')
         return v
 
     @validator('quality')
     def validate_quality(cls, v):
+        quality_map = {'fast': 'standard'}
+        v = quality_map.get(v, v)
         allowed = ['standard', 'high', 'ultra']
         if v not in allowed:
             raise ValueError(f'Quality must be one of: {allowed}')
@@ -353,11 +355,10 @@ def get_pipeline(pipeline_type: str):
         if actual_pipeline_type == "idea2video":
             pipelines[actual_pipeline_type] = Idea2VideoPipeline.init_from_env()
         elif actual_pipeline_type == "script2video":
-            # For now, script2video still uses config - will update later
             from pipelines.script2video_pipeline import Script2VideoPipeline
             pipelines[actual_pipeline_type] = Script2VideoPipeline.init_from_config("configs/script2video.yaml")
-        # elif actual_pipeline_type == "novel2video":
-        #     pipelines[actual_pipeline_type] = Novel2MoviePipeline.init_from_config("configs/script2video.yaml")  # Uses same config as script2video
+        elif actual_pipeline_type == "novel2video":
+            pipelines[actual_pipeline_type] = Novel2MoviePipeline.init_from_config("configs/script2video.yaml")
         else:
             raise ValueError(f"Unknown pipeline type: {pipeline_type}")
     return pipelines[actual_pipeline_type]
@@ -738,6 +739,7 @@ async def generate_video(
 
     # Validate and save uploaded files if provided
     script_path = None
+    novel_path = None
     photo_path = None
 
     if script_file:
@@ -747,12 +749,25 @@ async def generate_video(
             content = await script_file.read()
             f.write(content)
 
+    if novel_file:
+        validate_file_upload(novel_file)
+        novel_path = job_dir / f"novel_{novel_file.filename}"
+        with open(novel_path, "wb") as f:
+            content = await novel_file.read()
+            f.write(content)
+
     if photo_file:
         validate_file_upload(photo_file, allowed_types=["jpg", "jpeg", "png", "webp"])
         photo_path = job_dir / f"photo_{photo_file.filename}"
         with open(photo_path, "wb") as f:
             content = await photo_file.read()
             f.write(content)
+
+    if pipeline_type == 'cameo' and not photo_file:
+        raise HTTPException(
+            status_code=400,
+            detail="AutoCameo requires a photo file. Please upload a JPG, PNG, or WebP image."
+        )
 
     # Initialize job status
     initial_status = {
@@ -869,19 +884,17 @@ async def run_pipeline(
         if pipeline_type in ["idea2video", "cameo"]:
             await pipeline(idea=idea, user_requirement=user_requirement, style=style)
         elif pipeline_type == "script2video":
-            # Use script from form or file
             script_content = script
             if script_path:
                 with open(script_path, 'r', encoding='utf-8') as f:
                     script_content = f.read()
             await pipeline(script=script_content, user_requirement=user_requirement, style=style)
-        # elif pipeline_type == "novel2video":
-        #     # Novel pipeline
-        #     novel_content = ""
-        #     if novel_path:
-        #         with open(novel_path, 'r', encoding='utf-8') as f:
-        #             novel_content = f.read()
-        #     await pipeline(novel_text=novel_content, style=style)
+        elif pipeline_type == "novel2video":
+            novel_content = script
+            if novel_path:
+                with open(novel_path, 'r', encoding='utf-8') as f:
+                    novel_content = f.read()
+            await pipeline(novel_text=novel_content, style=style)
 
         # Step 4: Video Assembly
         await update_step_status(current_status, 3)

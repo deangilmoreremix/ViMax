@@ -105,6 +105,19 @@ export const insertFeedback = async (feedbackData) => {
   return data;
 };
 
+export const trackPipelineSelection = async ({ userId, pipelineType, source }) => {
+  const edgeUrl = `${supabaseUrl}/functions/v1/track-event`;
+  await fetch(edgeUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${supabaseAnonKey}`,
+      'Apikey': supabaseAnonKey,
+    },
+    body: JSON.stringify({ user_id: userId, pipeline_type: pipelineType, source }),
+  });
+};
+
 export const getUserBatches = async (userId) => {
   const { data, error } = await supabase
     .from('vimax_batches')
