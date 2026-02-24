@@ -223,9 +223,29 @@
   transition: all var(--transition-fast);
 }
 
-.enhance-btn:hover {
+.enhance-btn:hover:not(:disabled) {
   background: var(--primary-50);
   border-color: var(--primary-500);
+}
+
+.enhance-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.enhance-btn.enhancing {
+  opacity: 0.75;
+  cursor: wait;
+}
+
+.enhance-spinner {
+  animation: enhance-spin 0.9s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes enhance-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .content-input {

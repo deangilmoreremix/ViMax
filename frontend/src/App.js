@@ -46,6 +46,14 @@ function getGenerateVideoUrl() {
   return `${getApiBaseUrl()}/generate-video`;
 }
 
+function getEnhanceTextUrl() {
+  const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+  if (supabaseUrl) {
+    return `${supabaseUrl}/functions/v1/enhance-text`;
+  }
+  return `${getApiBaseUrl()}/enhance-text`;
+}
+
 const DEFAULT_FORM = {
   pipeline: 'idea2video',
   idea: '',
@@ -78,6 +86,7 @@ export default function App() {
   const [userBatches, setUserBatches] = useState([]);
 
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   const [jobId, setJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
@@ -214,6 +223,43 @@ export default function App() {
   }, [wsStatus, jobId, userId]);
 
   const updateForm = (updates) => setFormData(prev => ({ ...prev, ...updates }));
+
+  const handleEnhance = async (text) => {
+    if (!text || text.trim().length < 10) {
+      showError('Please enter at least 10 characters before enhancing.');
+      return;
+    }
+    setIsEnhancing(true);
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+      if (anonKey) {
+        headers['Authorization'] = `Bearer ${anonKey}`;
+        headers['Apikey'] = anonKey;
+      } else if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+      const response = await fetch(getEnhanceTextUrl(), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: text.trim(), pipeline_type: formData.pipeline }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Enhancement failed.');
+      }
+      if (formData.pipeline === 'idea2video' || formData.pipeline === 'cameo') {
+        updateForm({ idea: data.enhanced_text });
+      } else {
+        updateForm({ script: data.enhanced_text });
+      }
+      showSuccess('Text enhanced successfully!');
+    } catch (err) {
+      showError(err.message || 'Enhancement failed. Please try again.');
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
 
   const handleIntakeComplete = (result) => {
     const pipeline = result.pipeline || 'idea2video';
@@ -374,7 +420,7 @@ export default function App() {
           />
         );
       case STEP_CONTENT:
-        return <ContentStep formData={formData} onUpdate={updateForm} onEnhance={() => {}} onError={showError} />;
+        return <ContentStep formData={formData} onUpdate={updateForm} onEnhance={handleEnhance} isEnhancing={isEnhancing} onError={showError} />;
       case STEP_STYLE:
         return <StyleStep formData={formData} onUpdate={updateForm} />;
       case STEP_GENERATION:

@@ -108,7 +108,7 @@ const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
-export default function ContentStep({ formData, onUpdate, onEnhance, onError }) {
+export default function ContentStep({ formData, onUpdate, onEnhance, isEnhancing, onError }) {
   const { pipeline, idea, script, requirement } = formData;
   const fileInputRef = useRef(null);
   const photoFileRef = useRef(null);
@@ -203,14 +203,27 @@ export default function ContentStep({ formData, onUpdate, onEnhance, onError }) 
           maxLength={info.maxLength}
           rows={pipeline === 'script2video' || pipeline === 'novel2video' ? 10 : 6}
         />
-        {(pipeline === 'idea2video' || pipeline === 'cameo') && (
-          <button className="enhance-btn" onClick={() => onEnhance && onEnhance(mainText)}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1v2M7 11v2M1 7h2M11 7h2M3.05 3.05l1.41 1.41M9.54 9.54l1.41 1.41M3.05 10.95l1.41-1.41M9.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-            Enhance with AI
-          </button>
-        )}
+        <button
+          className={`enhance-btn${isEnhancing ? ' enhancing' : ''}`}
+          onClick={() => onEnhance && onEnhance(mainText)}
+          disabled={isEnhancing || mainText.trim().length < 10}
+        >
+          {isEnhancing ? (
+            <>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="enhance-spinner">
+                <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4" strokeDasharray="20 14" strokeLinecap="round" />
+              </svg>
+              Enhancing...
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1v2M7 11v2M1 7h2M11 7h2M3.05 3.05l1.41 1.41M9.54 9.54l1.41 1.41M3.05 10.95l1.41-1.41M9.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+              Enhance with AI
+            </>
+          )}
+        </button>
       </div>
 
       {(pipeline === 'script2video' || pipeline === 'novel2video') && (

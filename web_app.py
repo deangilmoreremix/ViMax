@@ -1029,6 +1029,54 @@ async def run_pipeline(
         log_performance("pipeline_failed", pipeline_duration, user_id, job_id, False)
         logger.error(f"Pipeline execution failed for job {job_id}: {e}")
 
+class EnhanceTextRequest(BaseModel):
+    text: str = Field(..., description="The text to enhance")
+    pipeline_type: str = Field(default="idea2video", description="Pipeline type context")
+
+
+@app.post("/enhance-text")
+async def enhance_text(
+    request: EnhanceTextRequest,
+    _auth: bool = Depends(verify_api_key),
+):
+    text = request.text.strip()
+    if len(text) < 10:
+        raise HTTPException(status_code=400, detail="Text must be at least 10 characters long.")
+
+    chat_model_name = os.getenv("CHAT_MODEL", "google/gemini-2.5-flash-lite-preview-09-2025")
+    model_provider = os.getenv("CHAT_MODEL_PROVIDER", "openai")
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+
+    if not api_key:
+        raise HTTPException(status_code=500, detail="LLM API key not configured.")
+
+    try:
+        if request.pipeline_type in ("idea2video", "cameo"):
+            from agents.idea_expander import IdeaExpander
+            expander = IdeaExpander(
+                chat_model=chat_model_name,
+                base_url=base_url,
+                api_key=api_key,
+                model_provider=model_provider,
+            )
+            enhanced = await expander.expand_idea(text)
+        else:
+            from agents.script_enhancer import ScriptEnhancer
+            enhancer = ScriptEnhancer(
+                chat_model=chat_model_name,
+                base_url=base_url,
+                api_key=api_key,
+                model_provider=model_provider,
+            )
+            enhanced = await enhancer.enhance_script(text)
+
+        return {"enhanced_text": enhanced}
+    except Exception as e:
+        logger.error(f"Text enhancement failed: {e}")
+        raise HTTPException(status_code=500, detail="Enhancement failed. Please try again.")
+
+
 @app.get("/job/{job_id}")
 async def get_job_status(job_id: str):
     status = load_job_status(job_id)
