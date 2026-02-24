@@ -45,24 +45,6 @@ const PIPELINES = [
     ),
   },
   {
-    value: 'script2video',
-    emoji: '⚙️',
-    name: 'Script2Video',
-    badge: 'Backend',
-    tagline: 'Unlimited Screenplay Video Creation',
-    description: 'Unleash your creativity by writing any screenplay from personal stories to epic adventures, giving you complete control over every aspect of your visual storytelling.',
-    cta: 'Use a screenplay',
-    accentColor: '#dc2626',
-    accentBg: 'rgba(220, 38, 38, 0.06)',
-    accentBorder: 'rgba(220, 38, 38, 0.2)',
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <rect x="4" y="4" width="20" height="20" rx="3" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M9 10h10M9 14h10M9 18h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
     value: 'cameo',
     emoji: '🤳',
     name: 'AutoCameo',
