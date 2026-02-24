@@ -6,6 +6,7 @@ const PIPELINE_INFO = {
   idea2video: {
     label: 'Idea2Video',
     accentColor: '#2563eb',
+    acceptsReferenceVideo: false,
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
@@ -26,6 +27,9 @@ const PIPELINE_INFO = {
   script2video: {
     label: 'Script2Video',
     accentColor: '#dc2626',
+    acceptsReferenceVideo: true,
+    referenceVideoLabel: 'Reference Footage',
+    referenceVideoHint: 'Upload a video to guide the visual style and tone of each scene. MP4, MOV, or WebM up to 500 MB. Optional.',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M5 3h10a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1Z" stroke="currentColor" strokeWidth="1.5" />
@@ -46,6 +50,9 @@ const PIPELINE_INFO = {
   novel2video: {
     label: 'Novel2Video',
     accentColor: '#0d9488',
+    acceptsReferenceVideo: true,
+    referenceVideoLabel: 'Reference Footage',
+    referenceVideoHint: 'Upload a video that matches the tone or setting of your story. Helps the AI generate visuals consistent with your narrative. MP4, MOV, or WebM up to 500 MB. Optional.',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M4 3h8l4 4v10H4V3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -67,6 +74,9 @@ const PIPELINE_INFO = {
   cameo: {
     label: 'AutoCameo',
     accentColor: '#0ea5e9',
+    acceptsReferenceVideo: true,
+    referenceVideoLabel: 'Reference Video',
+    referenceVideoHint: 'Upload a short video to set the scene context — location, movement style, or cinematography. MP4, MOV, or WebM up to 500 MB. Optional.',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <rect x="2" y="4" width="16" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
@@ -95,12 +105,28 @@ const PIPELINE_OPTIONS = [
 
 const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
+const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
 export default function ContentStep({ formData, onUpdate, onEnhance, onError }) {
   const { pipeline, idea, script, requirement } = formData;
   const fileInputRef = useRef(null);
   const photoFileRef = useRef(null);
+  const videoFileRef = useRef(null);
   const info = PIPELINE_INFO[pipeline] || PIPELINE_INFO.idea2video;
+
+  const handleVideoFile = (file) => {
+    if (!file) return;
+    if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+      onError && onError('Only MP4, MOV, WebM, and AVI video files are allowed.');
+      return;
+    }
+    if (file.size > MAX_VIDEO_SIZE) {
+      onError && onError('Reference video must be under 500 MB.');
+      return;
+    }
+    onUpdate({ referenceVideoFile: file });
+  };
   const mainText = pipeline === 'idea2video' || pipeline === 'cameo' ? idea : script;
   const setMainText = (val) => {
     if (pipeline === 'idea2video' || pipeline === 'cameo') {
@@ -122,7 +148,7 @@ export default function ContentStep({ formData, onUpdate, onEnhance, onError }) 
           <button
             key={opt.value}
             className={`pipeline-option ${pipeline === opt.value ? 'active' : ''}`}
-            onClick={() => onUpdate({ pipeline: opt.value })}
+            onClick={() => onUpdate({ pipeline: opt.value, referenceVideoFile: null })}
           >
             <div className="pipeline-option-icon">
               {PIPELINE_INFO[opt.value].icon}
@@ -265,6 +291,65 @@ export default function ContentStep({ formData, onUpdate, onEnhance, onError }) 
                 </svg>
                 <span>Upload your photo</span>
                 <span className="content-photo-hint">JPG, PNG, WebP up to 10MB</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {info.acceptsReferenceVideo && (
+        <div className="content-form-group">
+          <div className="content-label-row">
+            <label className="content-label">
+              {info.referenceVideoLabel}
+              <span className="content-optional"> (optional)</span>
+            </label>
+            {formData.referenceVideoFile && (
+              <button
+                className="content-file-remove"
+                onClick={() => { onUpdate({ referenceVideoFile: null }); if (videoFileRef.current) videoFileRef.current.value = ''; }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+          <input
+            ref={videoFileRef}
+            type="file"
+            accept="video/mp4,video/quicktime,video/webm,video/x-msvideo"
+            className="content-file-input-hidden"
+            onChange={(e) => { handleVideoFile(e.target.files[0]); }}
+          />
+          <div
+            className={`content-video-upload-zone ${formData.referenceVideoFile ? 'has-file' : ''}`}
+            onClick={() => !formData.referenceVideoFile && videoFileRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); handleVideoFile(e.dataTransfer.files[0]); }}
+          >
+            {formData.referenceVideoFile ? (
+              <div className="content-video-file-info">
+                <div className="content-video-file-icon">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M8 7.5l5 2.5-5 2.5V7.5Z" fill="currentColor" />
+                  </svg>
+                </div>
+                <div className="content-video-file-meta">
+                  <span className="content-video-file-name">{formData.referenceVideoFile.name}</span>
+                  <span className="content-video-file-size">
+                    {(formData.referenceVideoFile.size / (1024 * 1024)).toFixed(1)} MB
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="content-video-upload-icon">
+                  <rect x="2" y="5" width="24" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M11 10l7 4-7 4V10Z" fill="currentColor" opacity="0.35" />
+                  <path d="M14 2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <span className="content-video-upload-label">Drop a video file here or click to browse</span>
+                <span className="content-photo-hint">{info.referenceVideoHint}</span>
               </>
             )}
           </div>

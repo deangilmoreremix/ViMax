@@ -14,7 +14,7 @@ const NavItem = ({ icon, label, active, onClick, badge }) => (
   </button>
 );
 
-export default function Sidebar({ activeView, onViewChange, userStats, historyCount, batchCount, uploadCount, onNewVideo }) {
+export default function Sidebar({ activeView, onViewChange, userStats, historyCount, batchCount, onNewVideo }) {
   const { isDark } = useTheme();
 
   return (
@@ -88,17 +88,6 @@ export default function Sidebar({ activeView, onViewChange, userStats, historyCo
           active={activeView === 'batches'}
           onClick={() => onViewChange('batches')}
           badge={batchCount}
-        />
-        <NavItem
-          icon={
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M3 13v2h12v-2M9 3v9M6 9l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          }
-          label="Uploads"
-          active={activeView === 'uploads'}
-          onClick={() => onViewChange('uploads')}
-          badge={uploadCount}
         />
       </nav>
 

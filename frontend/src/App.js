@@ -7,7 +7,6 @@ import Sidebar from './components/Sidebar';
 import WizardProgress from './components/WizardProgress';
 import TemplateLibrary from './components/TemplateLibrary';
 import HistoryView from './components/HistoryView';
-import VideoUploadView from './components/VideoUploadView';
 import PipelineSelectStep from './steps/PipelineSelectStep';
 import IntakeStep from './steps/IntakeStep';
 import ContentStep from './steps/ContentStep';
@@ -22,7 +21,6 @@ import {
   incrementTemplateUsage,
   getUserBatches,
   trackPipelineSelection,
-  getUserVideoUploads,
 } from './supabase';
 import './App.css';
 
@@ -62,6 +60,7 @@ const DEFAULT_FORM = {
   scriptFile: null,
   novelFile: null,
   photoFile: null,
+  referenceVideoFile: null,
 };
 
 export default function App() {
@@ -77,7 +76,6 @@ export default function App() {
   const [userHistory, setUserHistory] = useState([]);
   const [userStats, setUserStats] = useState({});
   const [userBatches, setUserBatches] = useState([]);
-  const [uploadCount, setUploadCount] = useState(0);
 
   const [showAIAssistant, setShowAIAssistant] = useState(false);
 
@@ -107,10 +105,9 @@ export default function App() {
   const loadUserData = async (uid) => {
     try {
       await upsertUser(uid);
-      const [jobs, batches, uploads] = await Promise.all([
+      const [jobs, batches] = await Promise.all([
         getUserJobs(uid, 50),
         getUserBatches(uid),
-        getUserVideoUploads(uid, 1),
       ]);
       setUserHistory(jobs);
       setUserBatches(batches);
@@ -119,12 +116,10 @@ export default function App() {
         const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
         setUserStats({ total_generations: jobs.length, average_rating: avgRating });
       }
-      setUploadCount(uploads.length > 0 ? uploads.length : 0);
     } catch {
       setUserHistory([]);
       setUserBatches([]);
       setUserStats({ total_generations: 0, average_rating: 0 });
-      setUploadCount(0);
     }
   };
 
@@ -272,6 +267,7 @@ export default function App() {
     if (formData.scriptFile) form.append('script_file', formData.scriptFile);
     if (formData.novelFile) form.append('novel_file', formData.novelFile);
     if (formData.photoFile) form.append('photo_file', formData.photoFile);
+    if (formData.referenceVideoFile) form.append('reference_video', formData.referenceVideoFile);
 
     const headers = {};
     const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
@@ -345,6 +341,7 @@ export default function App() {
       scriptFile: null,
       novelFile: null,
       photoFile: null,
+      referenceVideoFile: null,
     }));
     try { trackPipelineSelection({ userId, pipelineType: pipelineValue, source: 'card' }); } catch {}
     setCurrentStep(STEP_CONTENT);
@@ -472,14 +469,6 @@ export default function App() {
       );
     }
 
-    if (activeView === 'uploads') {
-      return (
-        <div className="app-content animate-fade-in">
-          <VideoUploadView userId={userId} />
-        </div>
-      );
-    }
-
     if (activeView === 'batches') {
       return (
         <div className="app-content animate-fade-in">
@@ -556,7 +545,6 @@ export default function App() {
         userStats={userStats}
         historyCount={userHistory.length}
         batchCount={userBatches.length}
-        uploadCount={uploadCount}
         onNewVideo={handleNewVideo}
       />
       <main className="app-main">

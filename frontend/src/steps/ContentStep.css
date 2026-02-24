@@ -344,6 +344,97 @@
   gap: var(--space-2);
 }
 
+.content-video-upload-zone {
+  width: 100%;
+  min-height: 120px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  background: var(--bg-secondary);
+  padding: var(--space-5) var(--space-6);
+  text-align: center;
+}
+
+.content-video-upload-zone:hover {
+  border-color: var(--primary-400);
+  background: var(--primary-50);
+  color: var(--primary-600);
+}
+
+[data-theme="dark"] .content-video-upload-zone:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.content-video-upload-zone.has-file {
+  cursor: default;
+  border-style: solid;
+  border-color: var(--border);
+  background: var(--bg-primary);
+}
+
+.content-video-upload-icon {
+  color: var(--text-tertiary);
+  transition: color var(--transition-fast);
+}
+
+.content-video-upload-zone:hover .content-video-upload-icon {
+  color: var(--primary-500);
+}
+
+.content-video-upload-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+.content-video-file-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.content-video-file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.content-video-file-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.content-video-file-name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.content-video-file-size {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
 @media (max-width: 640px) {
   .pipeline-selector {
     grid-template-columns: 1fr;
