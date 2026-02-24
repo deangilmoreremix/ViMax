@@ -127,3 +127,40 @@ export const getUserBatches = async (userId) => {
   if (error) throw error;
   return data || [];
 };
+
+export const insertVideoUpload = async (uploadData) => {
+  const { data, error } = await supabase
+    .from('vimax_video_uploads')
+    .insert(uploadData)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+export const getUserVideoUploads = async (userId, limit = 50) => {
+  const { data, error } = await supabase
+    .from('vimax_video_uploads')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+};
+
+export const updateVideoUpload = async (uploadId, updates) => {
+  const { error } = await supabase
+    .from('vimax_video_uploads')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', uploadId);
+  if (error) throw error;
+};
+
+export const deleteVideoUpload = async (uploadId) => {
+  const { error } = await supabase
+    .from('vimax_video_uploads')
+    .delete()
+    .eq('id', uploadId);
+  if (error) throw error;
+};

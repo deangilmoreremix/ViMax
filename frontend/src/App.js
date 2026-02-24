@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar';
 import WizardProgress from './components/WizardProgress';
 import TemplateLibrary from './components/TemplateLibrary';
 import HistoryView from './components/HistoryView';
+import VideoUploadView from './components/VideoUploadView';
 import PipelineSelectStep from './steps/PipelineSelectStep';
 import IntakeStep from './steps/IntakeStep';
 import ContentStep from './steps/ContentStep';
@@ -21,6 +22,7 @@ import {
   incrementTemplateUsage,
   getUserBatches,
   trackPipelineSelection,
+  getUserVideoUploads,
 } from './supabase';
 import './App.css';
 
@@ -75,6 +77,7 @@ export default function App() {
   const [userHistory, setUserHistory] = useState([]);
   const [userStats, setUserStats] = useState({});
   const [userBatches, setUserBatches] = useState([]);
+  const [uploadCount, setUploadCount] = useState(0);
 
   const [showAIAssistant, setShowAIAssistant] = useState(false);
 
@@ -104,9 +107,10 @@ export default function App() {
   const loadUserData = async (uid) => {
     try {
       await upsertUser(uid);
-      const [jobs, batches] = await Promise.all([
+      const [jobs, batches, uploads] = await Promise.all([
         getUserJobs(uid, 50),
         getUserBatches(uid),
+        getUserVideoUploads(uid, 1),
       ]);
       setUserHistory(jobs);
       setUserBatches(batches);
@@ -115,10 +119,12 @@ export default function App() {
         const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
         setUserStats({ total_generations: jobs.length, average_rating: avgRating });
       }
+      setUploadCount(uploads.length > 0 ? uploads.length : 0);
     } catch {
       setUserHistory([]);
       setUserBatches([]);
       setUserStats({ total_generations: 0, average_rating: 0 });
+      setUploadCount(0);
     }
   };
 
@@ -466,6 +472,14 @@ export default function App() {
       );
     }
 
+    if (activeView === 'uploads') {
+      return (
+        <div className="app-content animate-fade-in">
+          <VideoUploadView userId={userId} />
+        </div>
+      );
+    }
+
     if (activeView === 'batches') {
       return (
         <div className="app-content animate-fade-in">
@@ -542,6 +556,7 @@ export default function App() {
         userStats={userStats}
         historyCount={userHistory.length}
         batchCount={userBatches.length}
+        uploadCount={uploadCount}
         onNewVideo={handleNewVideo}
       />
       <main className="app-main">
