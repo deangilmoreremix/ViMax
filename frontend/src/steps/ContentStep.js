@@ -33,13 +33,13 @@ const PIPELINE_INFO = {
       </svg>
     ),
     steps: [
-      'Paste your screenplay directly into the text area, or upload a .txt / .md / .pdf file',
-      'Use standard screenplay format: scene headings (EXT./INT.), action lines, and dialogue',
+      'Paste your script directly into the text area, or upload a .txt / .md / .pdf file',
+      'Use standard script format: scene headings (EXT./INT.), action lines, and dialogue',
       'Each scene heading becomes a separate video segment',
       'Hit Next and the AI will generate visuals for every scene in your script',
     ],
     tip: 'Scene headings like "EXT. CITY STREET - NIGHT" tell the AI exactly where each shot takes place.',
-    inputLabel: 'Your Screenplay',
+    inputLabel: 'Your Script',
     placeholder: 'EXT. COFFEE SHOP - MORNING\n\nSARAH, 28, sits alone at a corner table, laptop open. The morning rush fills the café with noise.\n\nSARAH\n(typing intently)\nThis has to work...\n\nINT. COFFEE SHOP - CONTINUOUS\n\nThe BARISTA slides a coffee toward her.',
     maxLength: 10000,
   },
@@ -88,7 +88,7 @@ const PIPELINE_INFO = {
 
 const PIPELINE_OPTIONS = [
   { value: 'idea2video', label: 'Idea2Video', desc: 'Start from a concept' },
-  { value: 'script2video', label: 'Script2Video', desc: 'Use a screenplay' },
+  { value: 'script2video', label: 'Script2Video', desc: 'Use a script' },
   { value: 'novel2video', label: 'Novel2Video', desc: 'Adapt written work' },
   { value: 'cameo', label: 'AutoCameo', desc: 'Star in a video' },
 ];
